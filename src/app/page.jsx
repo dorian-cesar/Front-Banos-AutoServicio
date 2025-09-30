@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CircleX, TriangleAlert, CircleCheck } from 'lucide-react';
+import { CircleX, CircleCheck } from 'lucide-react';
+import Image from 'next/image';
 
 import Header from '@/components/header/header';
 import Card from '@/components/card/card';
@@ -10,14 +11,17 @@ import Modal from '@/components/modal/modal';
 
 import { serviciosService } from '@/lib/servicios.service';
 import { paymentService } from '@/lib/payment.service';
+import { localService } from '@/lib/local.service';
 
 export default function HomePage() {
   const [servicios, setServicios] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [open, setOpen] = useState(false);
+  const [disabled, setDisabled] = useState(true);
   const [currentAmount, setCurrentAmount] = useState(null);
   const [paymentResponse, setPaymentResponse] = useState(null);
+  const [posStatus, setPosStatus] = useState(null);
 
   const handleClose = () => {
     setOpen(false);
@@ -25,71 +29,155 @@ export default function HomePage() {
     setPaymentResponse(null);
   };
 
+  const checkPosStatus = async () => {
+    try {
+      const ipData = await localService.getIp();
+      const ip = ipData.ip;
+
+      console.log('IP obtenida:', ip);
+
+      const monitorUrl = `http://${ip}:3000`;
+      const monitorStatus = await paymentService.get('/monitor', monitorUrl);
+
+      setPosStatus(monitorStatus);
+
+      const isAvalible = monitorStatus.server === true;
+
+      setDisabled(!isAvalible);
+
+      return (isAvalible);
+    } catch (err) {
+      console.error('Error verificando estado del POS:', err);
+      setDisabled(true);
+      setError('Error obteniendo ip');
+      return false;
+    }
+  }
+
+  const loadServicios = async () => {
+    try {
+      const data = await serviciosService.getServicios();
+      setServicios(data);
+    } catch (err) {
+      console.error('Error cargando servicios:', err);
+      setError(err?.message ?? 'Error al cargar servicios');
+    }
+  };
+
   useEffect(() => {
     // cargar servicios
     let mounted = true;
-    serviciosService.getServicios()
-      .then(data => {
-        if (!mounted) return;
-        setServicios(data);
-      })
-      .catch(err => {
-        console.error(err);
-        setError(err?.message ?? 'Error al cargar servicios');
-      });
-    return () => { mounted = false; };
+    let intervalId;
+    const initializeApp = async () => {
+      try {
+        const posReady = await checkPosStatus();
+
+        if (posReady && mounted) {
+          await loadServicios();
+          intervalId = setInterval(async () => {
+            if (mounted) {
+              await checkPosStatus();
+            }
+          }, 10000);
+        } else if (mounted) {
+          setTimeout(() => {
+            if (mounted) initializeApp();
+          }, 5000);
+        }
+      } catch (err) {
+        console.error('Error inicializando app:', err);
+        if (mounted) {
+          setError('Error inicializando aplicación');
+        }
+      }
+    };
+
+    initializeApp();
+
+    return () => {
+      mounted = false;
+      if (intervalId) clearInterval(intervalId);
+    };
   }, []);
 
   useEffect(() => {
     if (!error) return;
-    const timer = setTimeout(() => setError(null), 3000);
+    const timer = setTimeout(() => setError(null), 5000);
     return () => clearTimeout(timer);
   }, [error]);
+
 
   const fetchServicios = async () => {
     if (loading) return;
     setLoading(true);
     try {
-      const data = await serviciosService.getServicios();
-      setServicios(data);
+      await loadServicios();
     } catch (err) {
       setError(err?.message ?? 'Error al cargar servicios');
     } finally {
       setLoading(false);
     }
-  }
+  };
+
 
   const handleClick = async (amount) => {
-    if (loading) return;
+    if (loading || disabled) return;
+
     setLoading(true);
     setCurrentAmount(amount);
     setPaymentResponse(null);
     setOpen(true);
 
     try {
-      const ticketNumber = String(Date.now());
+      // Verificar que el POS siga disponible antes del pago
+      const posReady = await checkPosStatus();
+      if (!posReady) {
+        throw new Error('POS no disponible. Verifique la conexión.');
+      }
 
+      const ticketNumber = String(Date.now());
       const payload = { amount, ticketNumber };
-      console.log('payload', payload);
+      console.log('Enviando pago:', payload);
 
       const result = await paymentService.postPayment(payload);
-      console.log('payment result', result);
 
       setPaymentResponse(result);
+
+      // Recargar servicios después del pago exitoso
+      if (result.data?.approved) {
+        setTimeout(() => {
+          loadServicios();
+        }, 1000);
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Error en pago:', err);
       setError(err?.message ?? 'Error al procesar pago');
     } finally {
       setLoading(false);
     }
   };
 
+
   return (
     <div className="flex flex-col items-center justify-center gap-8 font-sans w-full min-h-screen relative bg-gradient-to-br from-blue-50 to-indigo-400 p-4">
-      <Header onClick={() => { fetchServicios() }} />
+      <Header onClick={fetchServicios} />
+      <Image
+        src="/LOGOTIPO_BANO.png"
+        alt="Logo Baño"
+        className='mb-10'
+        style={{
+          filter: "invert(50%) sepia(100%) saturate(500%) hue-rotate(180deg)"
+        }}
+        width={250}
+        height={250}
+      />
 
       <div className="text-4xl font-bold" style={{ color: "#013ba7" }}>
         Elija la opción según servicio, para imprimir Ticket.
+      </div>
+
+      <div className={`text-lg font-semibold text-white`}>
+        {disabled ? 'Esperando al servidor' : 'Servidor listo'}
       </div>
 
       {error && (
@@ -103,13 +191,14 @@ export default function HomePage() {
           <div className="p-4">Procesando...</div>
         )}
 
-        <div className="flex flex-col items-center justify-center gap-6">
+        <div className="flex flex-col items-center justify-center gap-20">
           {servicios.map(s => (
             <Card
               key={s.id ?? s._id}
               servicio={s.nombre}
               precio={s.precio}
               onClick={() => handleClick(s.precio)}
+              disabled={disabled || loading} 
             />
           ))}
         </div>
@@ -134,39 +223,41 @@ export default function HomePage() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
               </svg>
-              <p className="text-gray-700 font-2xl">Procesando pago, siga las instrucciones del equipo...</p>
+              <p className="text-gray-700 text-2xl">Procesando pago, siga las instrucciones del equipo...</p>
             </div>
           ) : paymentResponse ? (
-            <div className='flex flex-col justify-center' style={{ minHeight: "300px" }}>
+            <div className='flex flex-col justify-between w-full' style={{ minHeight: "300px" }}>
               {paymentResponse.data?.approved
                 ? <div className='flex flex-col items-center justify-center'>
                   <CircleCheck size={80} color="green" className='mb-2' />
                   <h2 className=' text-3xl font-bold mb-10'>Pago Aprobado</h2>
+                  <p className='text-2xl'>{paymentResponse.data?.rawData?.responseMessage}</p>
                 </div>
                 : <div className='flex flex-col items-center justify-center'>
                   <CircleX size={80} color="red" className='mb-2' />
                   <h2 className=' text-3xl font-bold mb-10'>Pago Fallido</h2>
+                  <p className='text-2xl'>{paymentResponse.data?.rawData?.responseMessage}</p>
                 </div>}
-
-              <p className='text-2xl'>{paymentResponse.data?.rawData?.responseMessage}</p>
-              <div className="flex justify-end gap-2 px-5 py-4 border-t shrink-0">
+              <div className="flex justify-end gap-2">
                 <button
                   onClick={handleClose}
-                  className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  className="rounded-lg px-4 py-2 text-xl font-medium text-gray-700 active:bg-gray-400"
                 >
                   Cerrar
                 </button>
               </div>
             </div>
           ) : (
-            <div className='flex flex-col justify-center' style={{ minHeight: "300px" }}>
-              <p className='text-2xl'>No hay respuesta de pago.</p>
-              <button
-                onClick={handleClose}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-              >
-                Cerrar
-              </button>
+            <div className='flex flex-col justify-between h-full w-full'>
+              <p className='text-2xl py-10'>No hay respuesta de pago.</p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={handleClose}
+                  className="rounded-lg px-4 py-2 text-xl font-medium text-gray-700 active:bg-gray-400"
+                >
+                  Cerrar
+                </button>
+              </div>
             </div>
           )}
 
