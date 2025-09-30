@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react';
 import { CircleX, CircleCheck } from 'lucide-react';
 import Image from 'next/image';
+import Swal from 'sweetalert2';
+import 'sweetalert2/dist/sweetalert2.min.css';
 
 import Header from '@/components/header/header';
 import Card from '@/components/card/card';
 import Footer from '@/components/footer/footer';
-import Modal from '@/components/modal/modal';
+// import Modal from '@/components/modal/modal';
 
 import { serviciosService } from '@/lib/servicios.service';
 import { paymentService } from '@/lib/payment.service';
@@ -31,25 +33,23 @@ export default function HomePage() {
 
   const checkPosStatus = async () => {
     try {
-      const ipData = await localService.getIp();
-      const ip = ipData.ip;
-
-      console.log('IP obtenida:', ip);
-
-      const monitorUrl = `http://${ip}:3000`;
-      const monitorStatus = await paymentService.get('/monitor', monitorUrl);
-
+      console.log('Verificando estado del POS...');
+      
+      // Usa directamente getMonitor que ya maneja la obtención de IP internamente
+      const monitorStatus = await paymentService.getMonitor();
+      
+      console.log('Estado del POS:', monitorStatus);
       setPosStatus(monitorStatus);
-
-      const isAvalible = monitorStatus.server === true;
-
-      setDisabled(!isAvalible);
-
-      return (isAvalible);
+  
+      // Ajusta esta condición según la estructura real de tu respuesta
+      const isAvailable = monitorStatus.server === true;
+  
+      setDisabled(!isAvailable);
+      return isAvailable;
     } catch (err) {
       console.error('Error verificando estado del POS:', err);
       setDisabled(true);
-      setError('Error obteniendo ip');
+      setError('POS no disponible - ' + (err?.message ?? 'Error de conexión'));
       return false;
     }
   }
@@ -119,6 +119,27 @@ export default function HomePage() {
     }
   };
 
+  const showPaymentResult = (result, amount) => {
+    const approved = result?.data?.approved;
+    const message = result?.data?.rawData?.responseMessage ?? result?.message ?? '';
+
+    if (approved) {
+      Swal.fire({
+        icon: 'success',
+        title: 'Pago Aprobado',
+        html: `<p>${message}</p><p><strong>Monto:</strong> ${amount}</p>`,
+        confirmButtonText: 'Aceptar'
+      });
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'Pago Fallido',
+        html: `<p>${message}</p><p><strong>Monto:</strong> ${amount}</p>`,
+        confirmButtonText: 'Aceptar'
+      });
+    }
+  };
+
 
   const handleClick = async (amount) => {
     if (loading || disabled) return;
@@ -127,6 +148,17 @@ export default function HomePage() {
     setCurrentAmount(amount);
     setPaymentResponse(null);
     setOpen(true);
+
+    Swal.fire({
+      title: 'Procesando pago',
+      html: `Monto: <b>${amount}</b><br>Siga las instrucciones del equipo...`,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showConfirmButton: false
+    });
 
     try {
       // Verificar que el POS siga disponible antes del pago
@@ -143,6 +175,10 @@ export default function HomePage() {
 
       setPaymentResponse(result);
 
+      Swal.close();
+
+      showPaymentResult(result, amount);
+
       // Recargar servicios después del pago exitoso
       if (result.data?.approved) {
         setTimeout(() => {
@@ -152,6 +188,13 @@ export default function HomePage() {
     } catch (err) {
       console.error('Error en pago:', err);
       setError(err?.message ?? 'Error al procesar pago');
+      Swal.close();
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        html: `<p>${err?.message ?? 'Error inesperado'}</p>`,
+        confirmButtonText: 'Aceptar'
+      });
     } finally {
       setLoading(false);
     }
@@ -198,7 +241,7 @@ export default function HomePage() {
               servicio={s.nombre}
               precio={s.precio}
               onClick={() => handleClick(s.precio)}
-              disabled={disabled || loading} 
+              disabled={disabled || loading}
             />
           ))}
         </div>
@@ -206,7 +249,7 @@ export default function HomePage() {
 
       <Footer />
 
-      <Modal
+      {/* <Modal
         open={open}
         onClose={handleClose}
         title={
@@ -262,7 +305,7 @@ export default function HomePage() {
           )}
 
         </div>
-      </Modal>
+      </Modal> */}
     </div>
   );
 }

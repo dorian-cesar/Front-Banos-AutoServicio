@@ -1,4 +1,5 @@
 import { ApiClient } from './apiClient';
+import { localService } from '@/lib/local.service';
 
 const paymentApi = new ApiClient({ baseUrl: process.env.NEXT_PUBLIC_BASE_LOCAL });
 
@@ -10,7 +11,7 @@ export const paymentService = {
             const ipResponse = await localService.getIp();
             const ip = ipResponse.ip;
 
-            const monitorUrl = `http://${ip}:3000`;
+            const monitorUrl = `https://${ip}:3000`;
             const monitorData = await paymentApi.get('/monitor', monitorUrl);
             return monitorData;
         } catch (error) {
