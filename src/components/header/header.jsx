@@ -1,9 +1,8 @@
-"use client"
+"use client";
+import Image from "next/image";
+import { useState, useEffect } from "react";
 
-import Image from "next/image"
-import { useState, useEffect } from "react"
-
-export default function Header() {
+export default function Header({onClick}) {
     const [currentTime, setCurrentTime] = useState(new Date())
     useEffect(() => {
         const timer = setInterval(() => {
@@ -26,6 +25,7 @@ export default function Header() {
                 <div
                     className="w-16 h-16 rounded-full flex items-center justify-center"
                     style={{ backgroundColor: "#013ba7" }}
+                    onClick={onClick}
                 >
                     <Image
                         src="/LOGOTIPO_WIT.png"

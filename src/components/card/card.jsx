@@ -12,7 +12,7 @@ export default function Card({ servicio, precio, onClick}) {
         >
             <h2 className="text-6xl font-bold text-white">{servicio}</h2>
            <div className="flex items-center gap-4"><p className="text-4xl">Precio: </p><p className="text-6xl font-bold" style={{ color: '#ff5c21' }}>${precio}</p></div> 
-            <Btn text="Imprimir" onClick={onClick} />
+            <Btn text="Pagar" onClick={onClick} />
         </div>
     )
 }
