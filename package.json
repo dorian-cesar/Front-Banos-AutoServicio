@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "esc-pos-encoder": "^3.0.0",
     "lucide-react": "^0.544.0",
     "next": "15.5.4",
     "pdf-lib": "^1.17.1",

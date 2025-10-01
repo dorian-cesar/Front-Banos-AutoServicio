@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CircleX, CircleCheck } from 'lucide-react';
 import Image from 'next/image';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
@@ -9,41 +8,39 @@ import 'sweetalert2/dist/sweetalert2.min.css';
 import Header from '@/components/header/header';
 import Card from '@/components/card/card';
 import Footer from '@/components/footer/footer';
-// import Modal from '@/components/modal/modal';
+import { DotsLoader } from '@/components/loader/dots-loader';
 
 import { serviciosService } from '@/lib/servicios.service';
 import { paymentService } from '@/lib/payment.service';
-import { localService } from '@/lib/local.service';
+import { voucher, generateCode } from '@/utils/helpers';
+
+// import { generatePrintCommand } from '@/utils/print-simple';
 
 export default function HomePage() {
   const [servicios, setServicios] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [open, setOpen] = useState(false);
-  const [disabled, setDisabled] = useState(true);
+  const [disabled, setDisabled] = useState(true); //cambiar a true
   const [currentAmount, setCurrentAmount] = useState(null);
+  const [currentName, setCurrentName] = useState(null);
   const [paymentResponse, setPaymentResponse] = useState(null);
   const [posStatus, setPosStatus] = useState(null);
 
-  const handleClose = () => {
-    setOpen(false);
-    setCurrentAmount(null);
-    setPaymentResponse(null);
-  };
 
   const checkPosStatus = async () => {
     try {
       console.log('Verificando estado del POS...');
-      
+
       // Usa directamente getMonitor que ya maneja la obtención de IP internamente
       const monitorStatus = await paymentService.getMonitor();
-      
+
       console.log('Estado del POS:', monitorStatus);
       setPosStatus(monitorStatus);
-  
+
       // Ajusta esta condición según la estructura real de tu respuesta
       const isAvailable = monitorStatus.server === true;
-  
+
       setDisabled(!isAvailable);
       return isAvailable;
     } catch (err) {
@@ -101,6 +98,15 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!mounted) return;
+      await loadServicios();
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
     if (!error) return;
     const timer = setTimeout(() => setError(null), 5000);
     return () => clearTimeout(timer);
@@ -141,11 +147,12 @@ export default function HomePage() {
   };
 
 
-  const handleClick = async (amount) => {
+  const handleClick = async (amount, name) => {
     if (loading || disabled) return;
 
     setLoading(true);
     setCurrentAmount(amount);
+    setCurrentName(name);
     setPaymentResponse(null);
     setOpen(true);
 
@@ -179,8 +186,77 @@ export default function HomePage() {
 
       showPaymentResult(result, amount);
 
-      // Recargar servicios después del pago exitoso
       if (result.data?.approved) {
+        const fecha = result.data.rawData.realDate;
+        const hora = result.data.rawData.realTime;
+        const monto = result.data.rawData.amount;
+        const tipo = name;
+        const codigoComercio = result.data.rawData.commerceCode;
+        const terminalId = result.data.rawData.terminalId;
+        const cardNumber = result.data.rawData.last4Digits;
+        const cardType = result.data.rawData.cardType;
+        const operationNumber = result.data.rawData.operationNumber;
+        const authCode = result.data.rawData.authorizationCode;
+        const accountNumber = result.data.rawData.accountNumber || '---';
+        const tipo_cuota = result.data.rawData.shareType || 'SIN CUOTA';
+        const numero_cuota = result.data.rawData.sharesNumber || '0';
+        const monto_cuota = result.data.rawData.sharesAmount || '0';
+
+        // Formatear fecha y hora si es necesario
+        const formattedDate = fecha ? `${fecha.slice(0, 2)}/${fecha.slice(2, 4)}/${fecha.slice(4)}` : fecha;
+        const formattedTime = hora ? `${hora.slice(0, 2)}:${hora.slice(2, 4)}:${hora.slice(4)}` : hora;
+
+        const content = voucher(
+          codigoComercio,
+          formattedDate,
+          formattedTime,
+          terminalId,
+          cardNumber,
+          cardType,
+          monto,
+          accountNumber,
+          operationNumber,
+          tipo,
+          authCode,
+          numero_cuota,
+          tipo_cuota,
+          monto_cuota
+        );
+
+        const qrData = generateCode();
+
+        try {
+          const res = await fetch('/api/print', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              content: content,
+              qrData: qrData
+            })
+          });
+
+          const data = await res.json();
+
+          if (data.error) throw new Error(data.error);
+
+          // Abrir RawBT para imprimir
+          window.location.href = data.rawbt;
+
+          setTimeout(() => {
+            loadServicios();
+          }, 2000);
+        } catch (err) {
+          console.error('Error al imprimir voucher:', err);
+          // Mostrar error pero no bloquear el flujo
+          Swal.fire({
+            icon: 'warning',
+            title: 'Pago exitoso',
+            text: 'Pago procesado pero hubo un error al imprimir el comprobante',
+            confirmButtonText: 'Aceptar'
+          });
+        }
+      } else {
+        // Si el pago no fue aprobado, solo recargar servicios
         setTimeout(() => {
           loadServicios();
         }, 1000);
@@ -202,7 +278,7 @@ export default function HomePage() {
 
 
   return (
-    <div className="flex flex-col items-center justify-center gap-8 font-sans w-full min-h-screen relative bg-gradient-to-br from-blue-50 to-indigo-400 p-4">
+    <div className="flex flex-col items-center justify-center gap-8 font-sans w-full min-h-screen relative">
       <Header onClick={fetchServicios} />
       <Image
         src="/LOGOTIPO_BANO.png"
@@ -219,9 +295,12 @@ export default function HomePage() {
         Elija la opción según servicio, para imprimir Ticket.
       </div>
 
-      <div className={`text-lg font-semibold text-white`}>
-        {disabled ? 'Esperando al servidor' : 'Servidor listo'}
-      </div>
+      {disabled && (
+        <div className="text-2xl font-semibold text-white flex items-center gap-2">
+          <span>Esperando al servidor</span>
+          <DotsLoader />
+        </div>
+      )}
 
       {error && (
         <div className="mt-4 text-red-600" role="status" aria-live="polite">
@@ -240,7 +319,7 @@ export default function HomePage() {
               key={s.id ?? s._id}
               servicio={s.nombre}
               precio={s.precio}
-              onClick={() => handleClick(s.precio)}
+              onClick={() => handleClick(s.precio, s.nombre)}
               disabled={disabled || loading}
             />
           ))}
@@ -248,64 +327,6 @@ export default function HomePage() {
       </div>
 
       <Footer />
-
-      {/* <Modal
-        open={open}
-        onClose={handleClose}
-        title={
-          <div className='flex justify-between w-full'>
-            <span>Modal de pago</span>
-            <p>Monto: {currentAmount}</p>
-          </div>
-        }
-      >
-        <div className="flex flex-col items-center justify-center">
-          {loading ? (
-            <div className='flex flex-col items-center justify-center gap-10' style={{ minHeight: "300px" }}>
-              <svg className="animate-spin h-15 w-15 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-              </svg>
-              <p className="text-gray-700 text-2xl">Procesando pago, siga las instrucciones del equipo...</p>
-            </div>
-          ) : paymentResponse ? (
-            <div className='flex flex-col justify-between w-full' style={{ minHeight: "300px" }}>
-              {paymentResponse.data?.approved
-                ? <div className='flex flex-col items-center justify-center'>
-                  <CircleCheck size={80} color="green" className='mb-2' />
-                  <h2 className=' text-3xl font-bold mb-10'>Pago Aprobado</h2>
-                  <p className='text-2xl'>{paymentResponse.data?.rawData?.responseMessage}</p>
-                </div>
-                : <div className='flex flex-col items-center justify-center'>
-                  <CircleX size={80} color="red" className='mb-2' />
-                  <h2 className=' text-3xl font-bold mb-10'>Pago Fallido</h2>
-                  <p className='text-2xl'>{paymentResponse.data?.rawData?.responseMessage}</p>
-                </div>}
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={handleClose}
-                  className="rounded-lg px-4 py-2 text-xl font-medium text-gray-700 active:bg-gray-400"
-                >
-                  Cerrar
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className='flex flex-col justify-between h-full w-full'>
-              <p className='text-2xl py-10'>No hay respuesta de pago.</p>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={handleClose}
-                  className="rounded-lg px-4 py-2 text-xl font-medium text-gray-700 active:bg-gray-400"
-                >
-                  Cerrar
-                </button>
-              </div>
-            </div>
-          )}
-
-        </div>
-      </Modal> */}
     </div>
   );
 }

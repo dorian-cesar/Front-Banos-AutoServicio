@@ -3,7 +3,7 @@
 export default function Card({ servicio, precio, onClick, disabled = false }) {
     return (
         <div
-            className="card rounded-4xl flex flex-col items-center gap-6 shadow-2xl border-4 border-white border-opacity-10 backdrop-blur-sm transform transition-all duration-300"
+            className="card rounded-4xl flex flex-col items-center gap-6 border-4 border-white border-opacity-10 backdrop-blur-sm transform transition-all duration-300"
             style={{
                 backgroundColor: disabled
                     ? "rgba(255, 255, 255, 0.08)"
