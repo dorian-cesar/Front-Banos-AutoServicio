@@ -24,7 +24,8 @@ export default function RootLayout({ children }) {
         style={{
           width: "1060px",
           height: "1910px",
-          margin: "0"
+          margin: "0",
+          padding: "0"
         }}
       >
         {children}

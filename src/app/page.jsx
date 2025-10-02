@@ -12,18 +12,14 @@ import { DotsLoader } from '@/components/loader/dots-loader';
 
 import { serviciosService } from '@/lib/servicios.service';
 import { paymentService } from '@/lib/payment.service';
-import { voucher, generateCode } from '@/utils/helpers';
+import { voucher, generateCode, createUser } from '@/utils/helpers';
 
-// import { generatePrintCommand } from '@/utils/print-simple';
 
 export default function HomePage() {
   const [servicios, setServicios] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [open, setOpen] = useState(false);
-  const [disabled, setDisabled] = useState(true); //cambiar a true
-  const [currentAmount, setCurrentAmount] = useState(null);
-  const [currentName, setCurrentName] = useState(null);
+  const [disabled, setDisabled] = useState(true);
   const [paymentResponse, setPaymentResponse] = useState(null);
   const [posStatus, setPosStatus] = useState(null);
 
@@ -32,13 +28,11 @@ export default function HomePage() {
     try {
       console.log('Verificando estado del POS...');
 
-      // Usa directamente getMonitor que ya maneja la obtención de IP internamente
       const monitorStatus = await paymentService.getMonitor();
 
       console.log('Estado del POS:', monitorStatus);
       setPosStatus(monitorStatus);
 
-      // Ajusta esta condición según la estructura real de tu respuesta
       const isAvailable = monitorStatus.server === true;
 
       setDisabled(!isAvailable);
@@ -151,10 +145,9 @@ export default function HomePage() {
     if (loading || disabled) return;
 
     setLoading(true);
-    setCurrentAmount(amount);
-    setCurrentName(name);
     setPaymentResponse(null);
-    setOpen(true);
+
+    const ticketNumber = String(Date.now());
 
     Swal.fire({
       title: 'Procesando pago',
@@ -174,7 +167,10 @@ export default function HomePage() {
         throw new Error('POS no disponible. Verifique la conexión.');
       }
 
-      const ticketNumber = String(Date.now());
+      const qrData = generateCode();
+
+      await createUser(qrData);
+      
       const payload = { amount, ticketNumber };
       console.log('Enviando pago:', payload);
 
@@ -222,8 +218,6 @@ export default function HomePage() {
           tipo_cuota,
           monto_cuota
         );
-
-        const qrData = generateCode();
 
         try {
           const res = await fetch('/api/print', {
@@ -278,12 +272,17 @@ export default function HomePage() {
 
 
   return (
-    <div className="flex flex-col items-center justify-center gap-8 font-sans w-full min-h-screen relative">
+    <div 
+      className="min-h-screen w-full flex flex-col items-center font-sans"
+      style={{ padding: "150px 80px" }}
+    >
+
       <Header onClick={fetchServicios} />
+
       <Image
         src="/LOGOTIPO_BANO.png"
         alt="Logo Baño"
-        className='mb-10'
+        className='my-10'
         style={{
           filter: "invert(50%) sepia(100%) saturate(500%) hue-rotate(180deg)"
         }}
@@ -291,7 +290,7 @@ export default function HomePage() {
         height={250}
       />
 
-      <div className="text-4xl font-bold" style={{ color: "#013ba7" }}>
+      <div className="text-4xl font-bold mb-10 text-[var(--primary)]">
         Elija la opción según servicio, para imprimir Ticket.
       </div>
 

@@ -36,6 +36,18 @@ export class ApiClient {
         }
     }
 
+    clearToken() {
+        this.token = null;
+        if (typeof window !== "undefined" && window.localStorage) {
+            try {
+                localStorage.removeItem("token");
+                console.log("[ApiClient] Token eliminado de localStorage");
+            } catch (e) {
+                console.warn("localStorage fallo al borrar token", e);
+            }
+        }
+    }
+
     getTokenFromStorage() {
         if (this.token) return this.token;
         if (typeof window !== "undefined" && window.localStorage) {
@@ -93,15 +105,21 @@ export class ApiClient {
         }
 
         if (res.status === 401 && requiresAuth) {
-            this.token = null;
-            await this.fetchToken(base);
-            const retryOpts = {
-                ...fetchOptions,
-                headers: { ...headers, Authorization: `Bearer ${this.token}` }
+            console.log('[ApiClient] 401, refrescando token...');
+            this.clearToken()
+            await this.readToken(base);
+            const retryHeaders = {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${this.token}`,
+                ...(options.headers || {})
             };
-            const retry = await fetch(url, retryOpts);
-            if (!retry.ok) throw new Error("Error en fetch (retry): " + retry.status);
-            return retry.json();
+            const retryOpts = {
+                ...options,
+                headers: retryHeaders
+            };
+            const retryRes = await fetch(url, retryOpts);
+            if (!retryRes.ok) throw new Error("Error en fetch (retry): " + retryRes.status);
+            return retryRes.json();
         }
 
         if (!res.ok) {

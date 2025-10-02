@@ -32,20 +32,20 @@ function generateQrCodeEscPos(qrData) {
     let escPos = new Uint8Array(0);
     const encoder = new TextEncoder();
 
-    // Comando para QR Code en impresoras ESC/POS
-    // 1. Establecer tamaño del módulo QR
-    escPos = appendBytes(escPos, new Uint8Array([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x08]));
+    // 1. Establecer tamaño del módulo QR (ejemplo: 9)
+    escPos = appendBytes(escPos, new Uint8Array([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x09]));
 
-    // 2. Establecer corrección de error (nivel L ~7%)
-    escPos = appendBytes(escPos, new Uint8Array([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x31]));
+    // 2. Establecer corrección de error (nivel L)
+    escPos = appendBytes(escPos, new Uint8Array([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x30]));
 
-    // 3. Almacenar datos QR
-    const dataLength = qrData.length + 3;
+    // 3. Almacenar datos QR — usa la longitud en bytes
+    const dataBytes = encoder.encode(String(qrData));
+    const dataLength = dataBytes.length + 3; // +3 por los bytes 0x31,0x50,0x30 en el comando
     const pL = dataLength % 256;
     const pH = Math.floor(dataLength / 256);
 
     escPos = appendBytes(escPos, new Uint8Array([0x1D, 0x28, 0x6B, pL, pH, 0x31, 0x50, 0x30]));
-    escPos = appendBytes(escPos, encoder.encode(qrData));
+    escPos = appendBytes(escPos, dataBytes);
 
     // 4. Imprimir QR Code
     escPos = appendBytes(escPos, new Uint8Array([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30]));
@@ -100,8 +100,10 @@ function voucherWithQrToEscPos(content, qrData) {
     // 6️⃣ QR centrado
     escPos = appendBytes(escPos, new Uint8Array([0x1B, 0x61, 0x01])); // Centrar
     escPos = appendBytes(escPos, generateQrCodeEscPos(qrData));
-    escPos = appendBytes(escPos, encoder.encode('\n'));
+    escPos = appendBytes(escPos, encoder.encode('\n\n'));
 
+    escPos = appendBytes(escPos, new Uint8Array([0x1B, 0x61, 0x01])); // centrar si quieres
+    escPos = appendBytes(escPos, encoder.encode('Codigo: ' + qrData + '\n\n'));
     escPos = appendBytes(escPos, new Uint8Array([0x1B, 0x61, 0x00])); // Reset
 
     // 8️⃣ Corte final
