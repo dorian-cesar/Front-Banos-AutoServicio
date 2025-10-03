@@ -12,7 +12,8 @@ import { DotsLoader } from '@/components/loader/dots-loader';
 
 import { serviciosService } from '@/lib/servicios.service';
 import { paymentService } from '@/lib/payment.service';
-import { voucher, generateCode, createUser } from '@/utils/helpers';
+import { userService } from '@/lib/user.service';
+import { voucher, generateCode } from '@/utils/helpers';
 
 
 export default function HomePage() {
@@ -26,7 +27,6 @@ export default function HomePage() {
 
   const checkPosStatus = async () => {
     try {
-      console.log('Verificando estado del POS...');
 
       const monitorStatus = await paymentService.getMonitor();
 
@@ -141,7 +141,7 @@ export default function HomePage() {
   };
 
 
-  const handleClick = async (amount, name) => {
+  const handleClick = async (amount, name, servicio) => {
     if (loading || disabled) return;
 
     setLoading(true);
@@ -160,6 +160,42 @@ export default function HomePage() {
       showConfirmButton: false
     });
 
+    const createUserWithRetries = async (token, {
+      maxAttempts = 4,
+      initialDelay = 800 // ms
+    } = {}) => {
+      let attempt = 0;
+      let lastError = null;
+
+      while (attempt < maxAttempts) {
+        attempt += 1;
+        try {
+          // Si tu servicio expone createUser que internamente llama addUser + addLevel,
+          // lo usamos directamente. Si prefieres intentar pasos separados, cambia aquí.
+          await userService.createUser(token);
+          return true; // creado correctamente
+        } catch (err) {
+          lastError = err;
+          console.warn(`Intento ${attempt} fallo al crear usuario:`, err);
+
+          // Si es el último intento, romper y propagar el error más abajo
+          if (attempt >= maxAttempts) break;
+
+          // backoff exponencial con jitter
+          const backoff = Math.floor(initialDelay * Math.pow(2, attempt - 1));
+          const jitter = Math.floor(Math.random() * Math.min(300, backoff));
+          const wait = backoff + jitter;
+
+          await new Promise(res => setTimeout(res, wait));
+        }
+      }
+
+      // si llegamos acá, todos los intentos fallaron
+      throw lastError ?? new Error('No se pudo crear el acceso después de varios intentos');
+    };
+
+
+
     try {
       // Verificar que el POS siga disponible antes del pago
       const posReady = await checkPosStatus();
@@ -169,8 +205,23 @@ export default function HomePage() {
 
       const qrData = generateCode();
 
-      await createUser(qrData);
-      
+      try {
+        await createUserWithRetries(qrData, { maxAttempts: 4, initialDelay: 800 });
+        console.log('Usuario creado correctamente: ', qrData);
+      } catch (createErr) {
+        console.error('Fallo al crear usuario tras reintentos:', createErr);
+        // cerrar swal de carga y mostrar mensaje de error, no hacemos el pago
+        Swal.close();
+        setError(createErr?.message ?? 'No se pudo crear el acceso en el sistema del torniquete');
+        Swal.fire({
+          icon: 'error',
+          title: 'Error creando acceso',
+          html: `<p>${createErr?.message ?? 'No se pudo crear el acceso. Intente nuevamente.'}</p>`,
+          confirmButtonText: 'Aceptar'
+        });
+        return; // abortamos todo — NO se envía el pago
+      }
+
       const payload = { amount, ticketNumber };
       console.log('Enviando pago:', payload);
 
@@ -197,7 +248,9 @@ export default function HomePage() {
         const tipo_cuota = result.data.rawData.shareType || 'SIN CUOTA';
         const numero_cuota = result.data.rawData.sharesNumber || '0';
         const monto_cuota = result.data.rawData.sharesAmount || '0';
+        const estadoMensaje = result.data.rawData.responseMessage || '';
 
+        const user = JSON.parse(localStorage.getItem("user"));
         // Formatear fecha y hora si es necesario
         const formattedDate = fecha ? `${fecha.slice(0, 2)}/${fecha.slice(2, 4)}/${fecha.slice(4)}` : fecha;
         const formattedTime = hora ? `${hora.slice(0, 2)}:${hora.slice(2, 4)}:${hora.slice(4)}` : hora;
@@ -220,6 +273,25 @@ export default function HomePage() {
         );
 
         try {
+          const payload = {
+            monto: amount,
+            metodo_pago: "tarjeta",
+            estado: estadoMensaje,
+            id_transaccion: operationNumber,
+            codigo_autorizacion: authCode,
+            codigo_comercio: codigoComercio,
+            usuario_id: user.id,
+            servicio_id: servicio
+          }
+
+          const res = await serviciosService.postVentas(payload)
+
+          console.log(res.message);
+        } catch (err) {
+          console.error("Error al registrar venta: " + err.message);
+        }
+
+        try {
           const res = await fetch('/api/print', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -234,7 +306,7 @@ export default function HomePage() {
           if (data.error) throw new Error(data.error);
 
           // Abrir RawBT para imprimir
-          window.location.href = data.rawbt;
+          // window.location.href = data.rawbt;
 
           setTimeout(() => {
             loadServicios();
@@ -272,7 +344,7 @@ export default function HomePage() {
 
 
   return (
-    <div 
+    <div
       className="min-h-screen w-full flex flex-col items-center font-sans"
       style={{ padding: "150px 80px" }}
     >
@@ -315,10 +387,10 @@ export default function HomePage() {
         <div className="flex flex-col items-center justify-center gap-20">
           {servicios.map(s => (
             <Card
-              key={s.id ?? s._id}
+              key={s.id}
               servicio={s.nombre}
               precio={s.precio}
-              onClick={() => handleClick(s.precio, s.nombre)}
+              onClick={() => handleClick(s.precio, s.nombre, s.id)}
               disabled={disabled || loading}
             />
           ))}

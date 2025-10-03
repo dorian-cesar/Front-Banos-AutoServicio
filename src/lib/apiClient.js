@@ -8,7 +8,7 @@ export class ApiClient {
     async fetchToken(baseUrl = this.baseUrl) {
         try {
             const url = `${baseUrl}/auth/login`;
-            console.log('[ApiClient] fetchToken ->', url);
+            console.log('[ApiClient] fetchToken');
             const res = await fetch(url, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -25,6 +25,7 @@ export class ApiClient {
             if (typeof window !== "undefined" && window.localStorage) {
                 try {
                     localStorage.setItem("token", data.token);
+                    localStorage.setItem("user", JSON.stringify(data.user));
                 } catch (e) {
                     console.warn("localStorage fallo", e);
                 }
@@ -41,6 +42,7 @@ export class ApiClient {
         if (typeof window !== "undefined" && window.localStorage) {
             try {
                 localStorage.removeItem("token");
+                localStorage.removeItem("user");
                 console.log("[ApiClient] Token eliminado de localStorage");
             } catch (e) {
                 console.warn("localStorage fallo al borrar token", e);
@@ -67,7 +69,10 @@ export class ApiClient {
 
         // Para endpoints que no requieren token (como /get_ip, /monitor)
         const noAuthEndpoints = ['/get_ip', '/monitor'];
-        const requiresAuth = !noAuthEndpoints.some(ep => endpoint.includes(ep));
+
+        // Si options.noAuth === true, forzamos no auth
+        const explicitlyNoAuth = options.noAuth === true;
+        const requiresAuth = !explicitlyNoAuth && !noAuthEndpoints.some(ep => endpoint.includes(ep));
 
         if (requiresAuth) {
             try {
@@ -83,15 +88,16 @@ export class ApiClient {
             ...(options.headers || {}),
         };
 
-        // Solo agregar Authorization si requiere autenticación y tenemos token
         if (requiresAuth && this.token) {
             headers.Authorization = `Bearer ${this.token}`;
         }
 
+        // Construir fetchOptions sin la flag interna noAuth
         const fetchOptions = {
             ...options,
             headers,
         };
+        delete fetchOptions.noAuth;
 
         if ((fetchOptions.method || 'GET').toUpperCase() === 'GET') {
             delete fetchOptions.body;
@@ -104,9 +110,10 @@ export class ApiClient {
             throw new Error('NetworkError: ' + (err.message || err));
         }
 
+        // Retry si 401 y requería auth
         if (res.status === 401 && requiresAuth) {
             console.log('[ApiClient] 401, refrescando token...');
-            this.clearToken()
+            this.clearToken();
             await this.readToken(base);
             const retryHeaders = {
                 "Content-Type": "application/json",
@@ -117,9 +124,17 @@ export class ApiClient {
                 ...options,
                 headers: retryHeaders
             };
+            delete retryOpts.noAuth;
             const retryRes = await fetch(url, retryOpts);
-            if (!retryRes.ok) throw new Error("Error en fetch (retry): " + retryRes.status);
-            return retryRes.json();
+            if (!retryRes.ok) {
+                let t;
+                try { t = await retryRes.text(); } catch (_) { t = ''; }
+                throw new Error("Error en fetch (retry): " + retryRes.status + " " + t);
+            }
+            // Intentamos parsear JSON, si falla devolvemos texto
+            const ctype = retryRes.headers.get('content-type') || '';
+            if (ctype.includes('application/json')) return retryRes.json();
+            return retryRes.text();
         }
 
         if (!res.ok) {
@@ -128,18 +143,22 @@ export class ApiClient {
             throw new Error(`Error en fetch: ${res.status} ${res.statusText} ${text}`);
         }
 
-        try {
-            return await res.json();
-        } catch (_) {
-            return null;
+        // Intentar parsear JSON, si no es JSON devolver texto
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            return res.json();
+        } else {
+            return res.text();
         }
     }
 
-    async get(endpoint, customBaseUrl) {
-        return this.request(endpoint, { method: "GET" }, customBaseUrl);
+    async get(endpoint, customBaseUrl, options = {}) {
+        const opts = { method: "GET", ...options };
+        return this.request(endpoint, opts, customBaseUrl);
     }
 
-    async post(endpoint, body, customBaseUrl) {
-        return this.request(endpoint, { method: "POST", body: JSON.stringify(body) }, customBaseUrl);
+    async post(endpoint, body, customBaseUrl, options = {}) {
+        const opts = { method: "POST", body: typeof body === 'string' ? body : JSON.stringify(body), ...options };
+        return this.request(endpoint, opts, customBaseUrl);
     }
 }

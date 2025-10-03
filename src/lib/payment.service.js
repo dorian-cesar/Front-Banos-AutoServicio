@@ -1,7 +1,7 @@
 import { ApiClient } from './apiClient';
 import { localService } from '@/lib/local.service';
 
-const paymentApi = new ApiClient({ baseUrl: process.env.NEXT_PUBLIC_BASE_LOCAL });
+const paymentApi = new ApiClient({ baseUrl: process.env.NEXT_PUBLIC_BASE_AMOS });
 
 export const paymentService = {
     postPayment: (data) => paymentApi.post('/payment', data),
