@@ -17,7 +17,17 @@ export default function Footer() {
                 alt="Logo PB"
                 width={400}
                 height={200}
+                className="invert brightness-0"
             />
+
+            <Image
+                src="/LOGOTIPO_WIT.png"
+                alt="Logo WIT"
+                width={70}
+                height={70}
+                className="invert brightness-0 mr-3"
+            />
+
 
         </div>
     )

@@ -1,4 +1,5 @@
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_TOTEM;
+const TOKEN = process.env.NEXT_PUBLIC_API_TOKEN;
 
 export async function getIp() {
     try {
@@ -21,8 +22,13 @@ export async function getIp() {
 
 export async function getCredentials() {
     try {
-        // Llamamos a nuestro endpoint interno de Next.js que usa el token privado
-        const res = await fetch("/api/totem-credentials");
+        const res = await fetch(`${BASE_URL}/get_credentials`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                "x-api-auth": TOKEN,
+            },
+        });
         if (!res.ok) throw new Error("Error obteniendo credenciales: " + res.status);
         return res.json();
     } catch (err) {

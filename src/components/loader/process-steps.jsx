@@ -5,8 +5,8 @@ export default function ProcessSteps() {
     const steps = [
         {
             number: 1,
-            title: "Seleccionar",
-            description: "Elige tu servicio",
+            title: "Elegir",
+            description: "Escoge tu servicio",
             icon: (<MousePointerClickIcon size={48}/>),
         },
         {
@@ -29,16 +29,15 @@ export default function ProcessSteps() {
                 <div key={step.number} className="flex items-center gap-8">
                     <div className="flex flex-col items-center gap-3">
                         <div
-                            className="w-32 h-32 rounded-full flex items-center justify-center text-white transition-all duration-300"
-                            style={{ backgroundColor: "#013ba7" }}
+                            className="w-32 h-32 rounded-full flex items-center justify-center text-white transition-all duration-300 bg-[var(--primary)]"
                         >
                             {step.icon}
                         </div>
                         <div className="text-center">
-                            <div className="text-4xl font-bold" style={{ color: "#013ba7" }}>
+                            <div className="text-4xl font-bold text-[var(--primary)]">
                                 {step.title}
                             </div>
-                            <div className="text-xl text-gray-600">{step.description}</div>
+                            <div className="text-2xl text-gray-600">{step.description}</div>
                         </div>
                     </div>
                     {index < steps.length - 1 && (

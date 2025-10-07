@@ -35,6 +35,7 @@ async function safeFetch(endpoint, options = {}) {
 }
 
 async function fetchWithToken(endpoint, options = {}, { maxRefreshAttempts = 1 } = {}) {
+
     let token = getToken();
 
     const doFetch = async (tokenToUse) => {

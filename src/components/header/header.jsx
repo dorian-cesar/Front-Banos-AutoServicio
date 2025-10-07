@@ -17,40 +17,40 @@ export default function Header({onClick}) {
             className="fixed top-0 left-0 flex items-center justify-between w-full"
             style={{
                 padding: "0 40px",
-                minHeight: "150px"
+                minHeight: "150px",
+                backgroundColor: "#013ba7"
             }}
         >
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-10">
                 <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center"
-                    style={{ backgroundColor: "#013ba7" }}
+                    className="w-16 h-16 flex items-center justify-center"
                     onClick={onClick}
                 >
                     <Image
-                        src="/LOGOTIPO_WIT.png"
+                        src="/LOGOTIPO_BANO_V1.png"
                         alt="Logo WIT"
-                        className="w-8 h-8 filter invert"
+                        className="w-15 h-15 filter invert"
                         width={50}
                         height={50}
                     />
                 </div>
                 <div>
-                    <h1 className="text-4xl font-bold" style={{ color: "#013ba7" }}>
+                    <h1 className="text-4xl font-bold text-white">
                         Autoservicio
                     </h1>
-                    <p className="text-2xl text-gray-600">Acceso a Baños</p>
+                    <p className="text-2xl text-gray-200">Acceso a Baños</p>
                 </div>
             </div>
             <div className="text-right">
-                <div className="text-3xl font-bold" style={{ color: "#013ba7" }}>
+                <div className="text-3xl font-bold text-white">
                     {currentTime.toLocaleTimeString("es-CL", {
                         timeZone: 'America/Santiago',
                         hour: "2-digit",
                         minute: "2-digit",
                     })}
                 </div>
-                <div className="text-2xl text-gray-600">
+                <div className="text-2xl text-gray-200">
                     {currentTime.toLocaleDateString("es-CL", {
                         timeZone: 'America/Santiago',
                         weekday: "long",

@@ -1,43 +1,44 @@
-"use client"
-
-export default function Card({ servicio, precio, onClick, disabled = false }) {
+import Image from "next/image"
+export default function Card({ image, name, price, onClick, disabled = false }) {
     return (
         <div
-            className="card rounded-4xl flex flex-col items-center gap-6 border-4 border-white border-opacity-10 backdrop-blur-sm transform transition-all duration-300"
-            style={{
-                backgroundColor: disabled
-                    ? "rgba(255, 255, 255, 0.08)"
-                    : "rgba(255, 255, 255, 0.15)",
-                padding: "40px 100px",
-                backdropFilter: "blur(10px)",
-                opacity: disabled ? 0.6 : 1,
-            }}
+            className={`flex py-10 px-20 rounded-4xl gap-20 w-full justify-between transition-all duration-300
+                ${disabled
+                    ? "bg-white/10 border-gray-400 opacity-70"
+                    : "bg-[rgba(1,59,167,0.5)] border-[5px] border-[var(--primary)]"}`
+            }
         >
-            <h2 className="text-8xl font-bold text-white">{servicio}</h2>
-            <div className="flex items-center gap-4">
-                <p className="text-4xl">Precio: </p>
-                <p className="text-6xl font-bold" style={{ color: '#ff5c21' }}>${precio}</p>
-            </div>
-            <Btn text="Pagar" onClick={onClick} disabled={disabled} />
-        </div>
-    )
-}
+            <Image
+                src={`/${image}.svg`}
+                alt="Logo"
+                className={`transition-opacity ${disabled ? "opacity-60" : "opacity-100"}`}
+                width={150}
+                height={150}
+            />
+            <div className="flex flex-col justify-between"
+                style={{
+                    width: "450px",
+                    height: "220px"
+                }}
+            >
+                <div className="flex items-center justify-between gap-10">
+                    <h2 className="text-7xl font-bold text-white m-0">
+                        {name}
+                    </h2>
+                    <p className="text-5xl font-bold text-white m-0">${price}</p>
+                </div>
 
-function Btn({ text, onClick, disabled = false }) {
-    return (
-        <button
-            onClick={disabled ? undefined : onClick}
-            disabled={disabled}
-            className={`text-white text-5xl font-bold rounded-full transition-all duration-200 shadow-lg ${disabled
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-[#ff5c21] hover:scale-105 active:scale-105 hover:bg-[#ff1c21]'
-                }`}
-            style={{
-                minWidth: "500px",
-                minHeight: "150px",
-            }}
-        >
-            {text}
-        </button>
+                <button
+                    className={`w-full p-7 rounded-full font-bold text-6xl transition-colors duration-200
+                        ${disabled
+                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                            : "bg-[var(--secondary)] text-white hover:bg-[var(--secondary)]/80"}`}
+                    disabled={disabled}
+                    onClick={onClick}
+                >
+                    {disabled ? "No disponible" : "Pagar"}
+                </button>
+            </div>
+        </div>
     )
 }

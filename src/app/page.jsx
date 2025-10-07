@@ -4,9 +4,9 @@ import { useEffect, useState, useRef } from "react";
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 
-import Header from "@/components/v2/header";
-import Card from "@/components/v2/card";
-import Footer from "@/components/v2/footer";
+import Header from "@/components/header/header";
+import Card from "@/components/card/card";
+import Footer from "@/components/footer/footer";
 import ProcessSteps from "@/components/loader/process-steps";
 import DotsLoader from "@/components/loader/dots-loader"
 
@@ -51,6 +51,7 @@ export default function HomePage() {
             if (!dataIP || !dataIP.ip) throw new Error("IP inválida");
 
             localStorage.setItem("ip", dataIP.ip);
+            localStorage.setItem("ip_totem", dataIP.ip_totem);
             if (dataIP.ubicacion) localStorage.setItem("site", dataIP.ubicacion);
 
             console.log("IP obtenida:", dataIP.ip);
@@ -366,11 +367,10 @@ export default function HomePage() {
       style={{ padding: "150px 80px" }}
     >
 
-      <Header onClick={fetchServicios}/>
+      <Header onClick={() => window.location.reload()}/>
 
       <div
-        className="font-bold mb-10 text-white"
-        style={{ fontSize: "5rem" }}
+        className="font-bold mb-20 text-white text-8xl text-center"
       >
         ¡Selecciona tu Servicio!
       </div>
@@ -395,7 +395,7 @@ export default function HomePage() {
               name={s.nombre}
               price={s.precio}
               onClick={() => handleClick(s.precio, s.nombre, s.id)}
-              disabled={disabled || loading}
+              disabled={disabled}
             />
           ))}
         </div>
