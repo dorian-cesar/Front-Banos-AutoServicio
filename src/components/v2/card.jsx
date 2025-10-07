@@ -1,17 +1,17 @@
 import Image from "next/image"
-export default function Card({ image, name, price }) {
+export default function Card({ image, name, price, onClick, disabled = false }) {
     return (
         <div
-            className="flex py-10 px-20 rounded-4xl gap-20 w-full justify-between"
-            style={{
-                border: "5px solid var(--primary)",
-                backgroundColor: "rgba(1, 59, 167, 0.5)"
-            }}
+            className={`flex py-10 px-20 rounded-4xl gap-20 w-full justify-between transition-all duration-300
+                ${disabled
+                    ? "bg-white/10 border-gray-400 opacity-70"
+                    : "bg-[rgba(1,59,167,0.5)] border-[5px] border-[var(--primary)]"}`
+            }
         >
             <Image
                 src={`/${image}.png`}
                 alt="Logo"
-                className="filter invert"
+                className={`filter invert transition-opacity ${disabled ? "opacity-60" : "opacity-100"}`}
                 width={200}
                 height={200}
             />
@@ -28,9 +28,14 @@ export default function Card({ image, name, price }) {
                 </div>
 
                 <button
-                    className="bg-[var(--secondary)] w-full p-7 rounded-full font-bold text-4xl text-white"
+                    className={`w-full p-7 rounded-full font-bold text-4xl transition-colors duration-200
+                        ${disabled
+                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                            : "bg-[var(--secondary)] text-white hover:bg-[var(--secondary)]/80"}`}
+                    disabled={disabled}
+                    onClick={onClick}
                 >
-                    Pagar
+                    {disabled ? "No disponible" : "Pagar"}
                 </button>
             </div>
         </div>

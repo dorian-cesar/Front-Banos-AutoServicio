@@ -1,84 +1,100 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Image from 'next/image';
+import { useEffect, useState, useRef } from "react";
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 
-import Header from '@/components/header/header';
-import Card from '@/components/card/card';
-import Footer from '@/components/footer/footer';
-import { DotsLoader } from '@/components/loader/dots-loader';
+import Header from "@/components/v2/header";
+import Card from "@/components/v2/card";
+import Footer from "@/components/v2/footer";
+import ProcessSteps from "@/components/loader/process-steps";
+import DotsLoader from "@/components/loader/dots-loader"
 
-import { serviciosService } from '@/lib/servicios.service';
-import { paymentService } from '@/lib/payment.service';
-import { userService } from '@/lib/user.service';
+import { getIp } from "@/services/totem.service";
+import { checkPosStatus, postPayment } from '@/services/amos.service';
+import { getServicios, postVentas } from '@/services/banio.service';
+import { createUser } from '@/services/torniquete.service';
+
 import { voucher, generateCode } from '@/utils/helpers';
 
-
 export default function HomePage() {
+
   const [servicios, setServicios] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [disabled, setDisabled] = useState(true);
-  const [paymentResponse, setPaymentResponse] = useState(null);
   const [posStatus, setPosStatus] = useState(null);
 
-
-  const checkPosStatus = async () => {
-    try {
-
-      const monitorStatus = await paymentService.getMonitor();
-
-      console.log('Estado del POS:', monitorStatus);
-      setPosStatus(monitorStatus);
-
-      const isAvailable = monitorStatus.server === true;
-
-      setDisabled(!isAvailable);
-      return isAvailable;
-    } catch (err) {
-      console.error('Error verificando estado del POS:', err);
-      setDisabled(true);
-      setError('POS no disponible - ' + (err?.message ?? 'Error de conexión'));
-      return false;
-    }
-  }
-
-  const loadServicios = async () => {
-    try {
-      const data = await serviciosService.getServicios();
-      setServicios(data);
-    } catch (err) {
-      console.error('Error cargando servicios:', err);
-      setError(err?.message ?? 'Error al cargar servicios');
-    }
-  };
+  // refs para controlar estado fuera del render
+  const isMountedRef = useRef(true);
+  const monitorIntervalRef = useRef(null);
+  const monitorInFlightRef = useRef(false);
+  const monitorAbortRef = useRef(null);
 
   useEffect(() => {
-    // cargar servicios
+
+    localStorage.clear();
     let mounted = true;
     let intervalId;
+
     const initializeApp = async () => {
       try {
-        const posReady = await checkPosStatus();
+        if (!mounted) return;
+        setLoading(true);
+        setDisabled(true);
 
-        if (posReady && mounted) {
-          await loadServicios();
-          intervalId = setInterval(async () => {
-            if (mounted) {
-              await checkPosStatus();
-            }
-          }, 10000);
-        } else if (mounted) {
-          setTimeout(() => {
-            if (mounted) initializeApp();
-          }, 5000);
+        // 1) Obtener IP con reintento
+        let dataIP = {};
+        while (mounted && !dataIP.ip) {
+          try {
+            dataIP = await getIp();
+            if (!dataIP || !dataIP.ip) throw new Error("IP inválida");
+
+            localStorage.setItem("ip", dataIP.ip);
+            if (dataIP.ubicacion) localStorage.setItem("site", dataIP.ubicacion);
+
+            console.log("IP obtenida:", dataIP.ip);
+          } catch (err) {
+            console.warn("Error al obtener IP:", err.message || err);
+            await new Promise((r) => setTimeout(r, 3000));
+          }
         }
+
+        // 2) Verificar POS antes de cargar servicios
+        const online = await checkPosStatus();
+        setPosStatus(online);
+        setDisabled(!online);
+
+        if (online && mounted) {
+          try {
+            const data = await getServicios();
+            setServicios(data || []);
+          } catch (err) {
+            console.error("Error cargando servicios:", err.message || err);
+            setError("No se pudieron cargar los servicios");
+          }
+
+          // 3) Iniciar monitor cada 10s
+          intervalId = setInterval(async () => {
+            try {
+              const status = await checkPosStatus();
+              setPosStatus(status);
+              setDisabled(!status);
+            } catch (err) {
+              console.warn("Monitor falló:", err.message);
+              setPosStatus(false);
+              setDisabled(true);
+            }
+          }, 15000);
+        }
+
+        setLoading(false);
       } catch (err) {
-        console.error('Error inicializando app:', err);
+        console.error("Error inicializando:", err);
         if (mounted) {
-          setError('Error inicializando aplicación');
+          setError("Error inicializando aplicación");
+          setLoading(false);
+          setDisabled(true);
         }
       }
     };
@@ -91,32 +107,34 @@ export default function HomePage() {
     };
   }, []);
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      if (!mounted) return;
-      await loadServicios();
-    })();
-    return () => { mounted = false; };
-  }, []);
 
-  useEffect(() => {
-    if (!error) return;
-    const timer = setTimeout(() => setError(null), 5000);
-    return () => clearTimeout(timer);
-  }, [error]);
+  const createUserWithRetries = async (token, {
+    maxAttempts = 4,
+    initialDelay = 1000
+  } = {}) => {
+    let attempt = 0;
+    let lastError = null;
 
+    while (attempt < maxAttempts) {
+      attempt += 1;
+      try {
+        await createUser(token);
+        return true;
+      } catch (err) {
+        lastError = err;
+        console.warn(`Intento ${attempt} fallo al crear usuario:`, err);
 
-  const fetchServicios = async () => {
-    if (loading) return;
-    setLoading(true);
-    try {
-      await loadServicios();
-    } catch (err) {
-      setError(err?.message ?? 'Error al cargar servicios');
-    } finally {
-      setLoading(false);
+        if (attempt >= maxAttempts) break;
+
+        const backoff = Math.floor(initialDelay * Math.pow(2, attempt - 1));
+        const jitter = Math.floor(Math.random() * Math.min(300, backoff));
+        const wait = backoff + jitter;
+
+        await new Promise(res => setTimeout(res, wait));
+      }
     }
+
+    throw lastError ?? new Error('No se pudo crear el acceso después de varios intentos');
   };
 
   const showPaymentResult = (result, amount) => {
@@ -140,14 +158,12 @@ export default function HomePage() {
     }
   };
 
-
   const handleClick = async (amount, name, servicio) => {
     if (loading || disabled) return;
 
     setLoading(true);
-    setPaymentResponse(null);
 
-    const ticketNumber = String(Date.now());
+    const ticketNumber = generateCode();
 
     Swal.fire({
       title: 'Procesando pago',
@@ -160,57 +176,21 @@ export default function HomePage() {
       showConfirmButton: false
     });
 
-    const createUserWithRetries = async (token, {
-      maxAttempts = 4,
-      initialDelay = 800 // ms
-    } = {}) => {
-      let attempt = 0;
-      let lastError = null;
-
-      while (attempt < maxAttempts) {
-        attempt += 1;
-        try {
-          // Si tu servicio expone createUser que internamente llama addUser + addLevel,
-          // lo usamos directamente. Si prefieres intentar pasos separados, cambia aquí.
-          await userService.createUser(token);
-          return true; // creado correctamente
-        } catch (err) {
-          lastError = err;
-          console.warn(`Intento ${attempt} fallo al crear usuario:`, err);
-
-          // Si es el último intento, romper y propagar el error más abajo
-          if (attempt >= maxAttempts) break;
-
-          // backoff exponencial con jitter
-          const backoff = Math.floor(initialDelay * Math.pow(2, attempt - 1));
-          const jitter = Math.floor(Math.random() * Math.min(300, backoff));
-          const wait = backoff + jitter;
-
-          await new Promise(res => setTimeout(res, wait));
-        }
-      }
-
-      // si llegamos acá, todos los intentos fallaron
-      throw lastError ?? new Error('No se pudo crear el acceso después de varios intentos');
-    };
-
-
-
     try {
-      // Verificar que el POS siga disponible antes del pago
+      // Verificar que el POS esté disponible
       const posReady = await checkPosStatus();
       if (!posReady) {
         throw new Error('POS no disponible. Verifique la conexión.');
       }
 
-      const qrData = generateCode();
+      const qrData = ticketNumber;
 
+      // Crear usuario con reintentos
       try {
-        await createUserWithRetries(qrData, { maxAttempts: 4, initialDelay: 800 });
+        await createUserWithRetries(qrData, { maxAttempts: 4, initialDelay: 1000 });
         console.log('Usuario creado correctamente: ', qrData);
       } catch (createErr) {
         console.error('Fallo al crear usuario tras reintentos:', createErr);
-        // cerrar swal de carga y mostrar mensaje de error, no hacemos el pago
         Swal.close();
         setError(createErr?.message ?? 'No se pudo crear el acceso en el sistema del torniquete');
         Swal.fire({
@@ -219,25 +199,23 @@ export default function HomePage() {
           html: `<p>${createErr?.message ?? 'No se pudo crear el acceso. Intente nuevamente.'}</p>`,
           confirmButtonText: 'Aceptar'
         });
-        return; // abortamos todo — NO se envía el pago
+        return;
       }
 
+      // Procesar pago
       const payload = { amount, ticketNumber };
       console.log('Enviando pago:', payload);
 
-      const result = await paymentService.postPayment(payload);
-
-      setPaymentResponse(result);
+      const result = await postPayment(payload);
 
       Swal.close();
-
       showPaymentResult(result, amount);
 
       if (result.data?.approved) {
         const fecha = result.data.rawData.realDate;
         const hora = result.data.rawData.realTime;
         const monto = result.data.rawData.amount;
-        const tipo = name;
+        const tipo = name.replace(/baño/gi, "Bano");
         const codigoComercio = result.data.rawData.commerceCode;
         const terminalId = result.data.rawData.terminalId;
         const cardNumber = result.data.rawData.last4Digits;
@@ -250,8 +228,23 @@ export default function HomePage() {
         const monto_cuota = result.data.rawData.sharesAmount || '0';
         const estadoMensaje = result.data.rawData.responseMessage || '';
 
-        const user = JSON.parse(localStorage.getItem("user"));
-        // Formatear fecha y hora si es necesario
+        const getUserFromStorage = () => {
+          try {
+            const userStr = localStorage.getItem("user");
+            return userStr ? JSON.parse(userStr) : null;
+          } catch (error) {
+            console.error("Error parsing user from localStorage:", error);
+            return null;
+          }
+        };
+
+        const getIpFromStorage = () => localStorage.getItem("ip");
+        const getSiteFromStorage = () => localStorage.getItem("site");
+        const user = getUserFromStorage();
+        const ip = getIpFromStorage();
+        const site = getSiteFromStorage();
+
+        // Formatear fecha y hora
         const formattedDate = fecha ? `${fecha.slice(0, 2)}/${fecha.slice(2, 4)}/${fecha.slice(4)}` : fecha;
         const formattedTime = hora ? `${hora.slice(0, 2)}:${hora.slice(2, 4)}:${hora.slice(4)}` : hora;
 
@@ -272,6 +265,7 @@ export default function HomePage() {
           monto_cuota
         );
 
+        // Registrar venta en el sistema
         try {
           const payload = {
             monto: amount,
@@ -281,16 +275,18 @@ export default function HomePage() {
             codigo_autorizacion: authCode,
             codigo_comercio: codigoComercio,
             usuario_id: user.id,
-            servicio_id: servicio
+            servicio_id: servicio,
+            ip_amos: ip,
+            ubicacion: site
           }
 
-          const res = await serviciosService.postVentas(payload)
-
+          const res = await postVentas(payload);
           console.log(res.message);
         } catch (err) {
           console.error("Error al registrar venta: " + err.message);
         }
 
+        // Imprimir voucher
         try {
           const res = await fetch('/api/print', {
             method: 'POST',
@@ -306,14 +302,14 @@ export default function HomePage() {
           if (data.error) throw new Error(data.error);
 
           // Abrir RawBT para imprimir
-          // window.location.href = data.rawbt;
+          window.location.href = data.rawbt;
 
+          // Recargar servicios después de un tiempo
           setTimeout(() => {
             loadServicios();
           }, 2000);
         } catch (err) {
           console.error('Error al imprimir voucher:', err);
-          // Mostrar error pero no bloquear el flujo
           Swal.fire({
             icon: 'warning',
             title: 'Pago exitoso',
@@ -322,7 +318,7 @@ export default function HomePage() {
           });
         }
       } else {
-        // Si el pago no fue aprobado, solo recargar servicios
+        // Si el pago no fue aprobado, recargar servicios
         setTimeout(() => {
           loadServicios();
         }, 1000);
@@ -342,60 +338,71 @@ export default function HomePage() {
     }
   };
 
+  const loadServicios = async () => {
+    try {
+      const data = await getServicios();
+      setServicios(data || []);
+    } catch (err) {
+      console.error('Error cargando servicios:', err);
+      setError(err?.message ?? 'Error al cargar servicios');
+    }
+  };
+
+  const fetchServicios = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      await loadServicios();
+    } catch (err) {
+      setError(err?.message ?? 'Error al cargar servicios');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div
-      className="min-h-screen w-full flex flex-col items-center font-sans"
+      className="min-h-screen w-full flex flex-col items-center justify-center font-sans bg-gradient-to-b from-blue-400 to-blue-100 "
       style={{ padding: "150px 80px" }}
     >
 
-      <Header onClick={fetchServicios} />
+      <Header onClick={fetchServicios}/>
 
-      <Image
-        src="/LOGOTIPO_BANO.png"
-        alt="Logo Baño"
-        className='my-10'
-        style={{
-          filter: "invert(50%) sepia(100%) saturate(500%) hue-rotate(180deg)"
-        }}
-        width={250}
-        height={250}
-      />
-
-      <div className="text-4xl font-bold mb-10 text-[var(--primary)]">
-        Elija la opción según servicio, para imprimir Ticket.
+      <div
+        className="font-bold mb-10 text-white"
+        style={{ fontSize: "5rem" }}
+      >
+        ¡Selecciona tu Servicio!
       </div>
 
-      {disabled && (
-        <div className="text-2xl font-semibold text-white flex items-center gap-2">
-          <span>Esperando al servidor</span>
-          <DotsLoader />
-        </div>
-      )}
-
       {error && (
-        <div className="mt-4 text-red-600" role="status" aria-live="polite">
+        <div className="text-red-600 text-4xl">
           {error}
         </div>
       )}
 
-      <div className="w-full max-w-3xl mt-6">
-        {loading && !paymentResponse && (
-          <div className="p-4">Procesando...</div>
-        )}
-
-        <div className="flex flex-col items-center justify-center gap-20">
+      {loading ? (
+        <div className="flex items-center justify-center text-5xl mb-15 text-white gap-5">
+          <p>Cargando servicios</p>
+          <DotsLoader />
+        </div>
+      ) : (
+        <div className="flex flex-col w-full gap-20 mb-20">
           {servicios.map(s => (
             <Card
               key={s.id}
-              servicio={s.nombre}
-              precio={s.precio}
+              image={s.nombre}
+              name={s.nombre}
+              price={s.precio}
               onClick={() => handleClick(s.precio, s.nombre, s.id)}
               disabled={disabled || loading}
             />
           ))}
         </div>
-      </div>
+      )}
+
+
+      <ProcessSteps />
 
       <Footer />
     </div>
