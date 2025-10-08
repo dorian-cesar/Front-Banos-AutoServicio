@@ -147,7 +147,9 @@ export default function HomePage() {
         icon: 'success',
         title: 'Pago Aprobado',
         html: `<p>${message}</p><p><strong>Monto:</strong> ${amount}</p>`,
-        confirmButtonText: 'Aceptar'
+        showConfirmButton: false,
+        timer: 2000, // se cierra automáticamente después de 2 segundos
+        timerProgressBar: true,
       });
     } else {
       Swal.fire({
@@ -367,7 +369,7 @@ export default function HomePage() {
       style={{ padding: "150px 80px" }}
     >
 
-      <Header onClick={() => window.location.reload()}/>
+      <Header onClick={() => window.location.reload()} />
 
       <div
         className="font-bold mb-20 text-white text-8xl text-center"
