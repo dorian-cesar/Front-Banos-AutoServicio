@@ -41,7 +41,8 @@ export default function HomePage() {
       try {
         if (!mounted) return;
         setLoading(true);
-        setDisabled(true);
+        // setDisabled(true);
+        setDisabled(false);
 
         // 1) Obtener IP con reintento
         let dataIP = {};
