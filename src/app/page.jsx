@@ -51,7 +51,7 @@ export default function HomePage() {
             if (!dataIP || !dataIP.ip) throw new Error("IP inválida");
 
             localStorage.setItem("ip", dataIP.ip);
-            localStorage.setItem("ip_totem", dataIP.ip_totem);
+            // localStorage.setItem("ip_totem", dataIP.ip_totem);
             if (dataIP.ubicacion) localStorage.setItem("site", dataIP.ubicacion);
 
             console.log("IP obtenida:", dataIP.ip);

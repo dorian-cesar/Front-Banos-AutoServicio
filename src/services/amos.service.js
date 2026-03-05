@@ -31,6 +31,8 @@ export async function postPayment(payload) {
     body: JSON.stringify(payload),
   });
 
+  console.log("res payment:", res);
+
   if (!res.ok) throw new Error("Error al enviar la venta: " + res.status);
 
   const data = await res.json();
