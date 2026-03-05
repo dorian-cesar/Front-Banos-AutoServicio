@@ -62,11 +62,12 @@ export default function HomePage() {
         }
 
         // 2) Verificar POS antes de cargar servicios
-        const online = await checkPosStatus();
-        setPosStatus(online);
-        setDisabled(!online);
+        // const online = await checkPosStatus();
+        // setPosStatus(online);
+        // setDisabled(!online);
 
-        if (online && mounted) {
+        // if (online && mounted) {
+        if (mounted) {
           try {
             const data = await getServicios();
             setServicios(data || []);
@@ -76,17 +77,17 @@ export default function HomePage() {
           }
 
           // 3) Iniciar monitor cada 10s
-          intervalId = setInterval(async () => {
-            try {
-              const status = await checkPosStatus();
-              setPosStatus(status);
-              setDisabled(!status);
-            } catch (err) {
-              console.warn("Monitor falló:", err.message);
-              setPosStatus(false);
-              setDisabled(true);
-            }
-          }, 15000);
+          // intervalId = setInterval(async () => {
+          //   try {
+          //     const status = await checkPosStatus();
+          //     setPosStatus(status);
+          //     setDisabled(!status);
+          //   } catch (err) {
+          //     console.warn("Monitor falló:", err.message);
+          //     setPosStatus(false);
+          //     setDisabled(true);
+          //   }
+          // }, 15000);
         }
 
         setLoading(false);
@@ -102,10 +103,10 @@ export default function HomePage() {
 
     initializeApp();
 
-    return () => {
-      mounted = false;
-      if (intervalId) clearInterval(intervalId);
-    };
+    // return () => {
+    //   mounted = false;
+    //   if (intervalId) clearInterval(intervalId);
+    // };
   }, []);
 
 
