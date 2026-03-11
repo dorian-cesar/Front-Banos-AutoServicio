@@ -1,24 +1,23 @@
-'use client';
+"use client";
 
 import { useEffect, useState, useRef } from "react";
-import Swal from 'sweetalert2';
-import 'sweetalert2/dist/sweetalert2.min.css';
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
 
 import Header from "@/components/header/header";
 import Card from "@/components/card/card";
 import Footer from "@/components/footer/footer";
 import ProcessSteps from "@/components/loader/process-steps";
-import DotsLoader from "@/components/loader/dots-loader"
+import DotsLoader from "@/components/loader/dots-loader";
 
 import { getIp } from "@/services/totem.service";
-import { checkPosStatus, postPayment } from '@/services/amos.service';
-import { getServicios, postVentas } from '@/services/banio.service';
-import { createUser } from '@/services/torniquete.service';
+import { checkPosStatus, postPayment } from "@/services/amos.service";
+import { getServicios, postVentas } from "@/services/banio.service";
+import { createUser } from "@/services/torniquete.service";
 
-import { voucher, generateCode } from '@/utils/helpers';
+import { voucher, generateCode } from "@/utils/helpers";
 
 export default function HomePage() {
-
   const [servicios, setServicios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,7 +31,6 @@ export default function HomePage() {
   const monitorAbortRef = useRef(null);
 
   useEffect(() => {
-
     localStorage.clear();
     let mounted = true;
     let intervalId;
@@ -52,7 +50,8 @@ export default function HomePage() {
 
             localStorage.setItem("ip", dataIP.ip);
             // localStorage.setItem("ip_totem", dataIP.ip_totem);
-            if (dataIP.ubicacion) localStorage.setItem("site", dataIP.ubicacion);
+            if (dataIP.ubicacion)
+              localStorage.setItem("site", dataIP.ubicacion);
 
             console.log("IP obtenida:", dataIP.ip);
           } catch (err) {
@@ -108,11 +107,10 @@ export default function HomePage() {
     };
   }, []);
 
-
-  const createUserWithRetries = async (token, {
-    maxAttempts = 4,
-    initialDelay = 1000
-  } = {}) => {
+  const createUserWithRetries = async (
+    token,
+    { maxAttempts = 4, initialDelay = 1000 } = {},
+  ) => {
     let attempt = 0;
     let lastError = null;
 
@@ -131,21 +129,25 @@ export default function HomePage() {
         const jitter = Math.floor(Math.random() * Math.min(300, backoff));
         const wait = backoff + jitter;
 
-        await new Promise(res => setTimeout(res, wait));
+        await new Promise((res) => setTimeout(res, wait));
       }
     }
 
-    throw lastError ?? new Error('No se pudo crear el acceso después de varios intentos');
+    throw (
+      lastError ??
+      new Error("No se pudo crear el acceso después de varios intentos")
+    );
   };
 
   const showPaymentResult = (result, amount) => {
     const approved = result?.data?.approved;
-    const message = result?.data?.rawData?.responseMessage ?? result?.message ?? '';
+    const message =
+      result?.data?.rawData?.responseMessage ?? result?.message ?? "";
 
     if (approved) {
       Swal.fire({
-        icon: 'success',
-        title: 'Pago Aprobado',
+        icon: "success",
+        title: "Pago Aprobado",
         html: `<p>${message}</p><p><strong>Monto:</strong> ${amount}</p>`,
         showConfirmButton: false,
         timer: 2000, // se cierra automáticamente después de 2 segundos
@@ -153,10 +155,10 @@ export default function HomePage() {
       });
     } else {
       Swal.fire({
-        icon: 'error',
-        title: 'Pago Fallido',
+        icon: "error",
+        title: "Pago Fallido",
         html: `<p>${message}</p><p><strong>Monto:</strong> ${amount}</p>`,
-        confirmButtonText: 'Aceptar'
+        confirmButtonText: "Aceptar",
       });
     }
   };
@@ -164,50 +166,71 @@ export default function HomePage() {
   const handleClick = async (amount, name, servicio) => {
     if (loading || disabled) return;
 
+    // Mostrar aviso para el servicio "Ducha"
+    if (name === "Ducha") {
+      const result = await Swal.fire({
+        icon: "info",
+        title: "Recuerde",
+        text: "Retirar su kit de toalla y jabón en caja",
+        confirmButtonText: "Entendido",
+        allowOutsideClick: false,
+      });
+
+      if (!result.isConfirmed) {
+        return; // Si no confirma, no continúa con el pago
+      }
+    }
+
     setLoading(true);
 
     const ticketNumber = generateCode();
 
     Swal.fire({
-      title: 'Procesando pago',
+      title: "Procesando pago",
       html: `Monto: <b>${amount}</b><br>Siga las instrucciones del equipo...`,
       didOpen: () => {
         Swal.showLoading();
       },
       allowOutsideClick: false,
       allowEscapeKey: false,
-      showConfirmButton: false
+      showConfirmButton: false,
     });
 
     try {
       // Verificar que el POS esté disponible
       const posReady = await checkPosStatus();
       if (!posReady) {
-        throw new Error('POS no disponible. Verifique la conexión.');
+        throw new Error("POS no disponible. Verifique la conexión.");
       }
 
       const qrData = ticketNumber;
 
       // Crear usuario con reintentos
       try {
-        await createUserWithRetries(qrData, { maxAttempts: 4, initialDelay: 1000 });
-        console.log('Usuario creado correctamente: ', qrData);
+        await createUserWithRetries(qrData, {
+          maxAttempts: 4,
+          initialDelay: 1000,
+        });
+        console.log("Usuario creado correctamente: ", qrData);
       } catch (createErr) {
-        console.error('Fallo al crear usuario tras reintentos:', createErr);
+        console.error("Fallo al crear usuario tras reintentos:", createErr);
         Swal.close();
-        setError(createErr?.message ?? 'No se pudo crear el acceso en el sistema del torniquete');
+        setError(
+          createErr?.message ??
+            "No se pudo crear el acceso en el sistema del torniquete",
+        );
         Swal.fire({
-          icon: 'error',
-          title: 'Error creando acceso',
-          html: `<p>${createErr?.message ?? 'No se pudo crear el acceso. Intente nuevamente.'}</p>`,
-          confirmButtonText: 'Aceptar'
+          icon: "error",
+          title: "Error creando acceso",
+          html: `<p>${createErr?.message ?? "No se pudo crear el acceso. Intente nuevamente."}</p>`,
+          confirmButtonText: "Aceptar",
         });
         return;
       }
 
       // Procesar pago
       const payload = { amount, ticketNumber };
-      console.log('Enviando pago:', payload);
+      console.log("Enviando pago:", payload);
 
       const result = await postPayment(payload);
 
@@ -225,11 +248,11 @@ export default function HomePage() {
         const cardType = result.data.rawData.cardType;
         const operationNumber = result.data.rawData.operationNumber;
         const authCode = result.data.rawData.authorizationCode;
-        const accountNumber = result.data.rawData.accountNumber || '---';
-        const tipo_cuota = result.data.rawData.shareType || 'SIN CUOTA';
-        const numero_cuota = result.data.rawData.sharesNumber || '0';
-        const monto_cuota = result.data.rawData.sharesAmount || '0';
-        const estadoMensaje = result.data.rawData.responseMessage || '';
+        const accountNumber = result.data.rawData.accountNumber || "---";
+        const tipo_cuota = result.data.rawData.shareType || "SIN CUOTA";
+        const numero_cuota = result.data.rawData.sharesNumber || "0";
+        const monto_cuota = result.data.rawData.sharesAmount || "0";
+        const estadoMensaje = result.data.rawData.responseMessage || "";
 
         const getUserFromStorage = () => {
           try {
@@ -248,8 +271,12 @@ export default function HomePage() {
         const site = getSiteFromStorage();
 
         // Formatear fecha y hora
-        const formattedDate = fecha ? `${fecha.slice(0, 2)}/${fecha.slice(2, 4)}/${fecha.slice(4)}` : fecha;
-        const formattedTime = hora ? `${hora.slice(0, 2)}:${hora.slice(2, 4)}:${hora.slice(4)}` : hora;
+        const formattedDate = fecha
+          ? `${fecha.slice(0, 2)}/${fecha.slice(2, 4)}/${fecha.slice(4)}`
+          : fecha;
+        const formattedTime = hora
+          ? `${hora.slice(0, 2)}:${hora.slice(2, 4)}:${hora.slice(4)}`
+          : hora;
 
         const content = voucher(
           codigoComercio,
@@ -265,7 +292,7 @@ export default function HomePage() {
           authCode,
           numero_cuota,
           tipo_cuota,
-          monto_cuota
+          monto_cuota,
         );
 
         // Registrar venta en el sistema
@@ -280,8 +307,8 @@ export default function HomePage() {
             usuario_id: user.id,
             servicio_id: servicio,
             ip_amos: ip,
-            ubicacion: site
-          }
+            ubicacion: site,
+          };
 
           const res = await postVentas(payload);
           console.log(res.message);
@@ -291,13 +318,13 @@ export default function HomePage() {
 
         // Imprimir voucher
         try {
-          const res = await fetch('/api/print', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+          const res = await fetch("/api/print", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               content: content,
-              qrData: qrData
-            })
+              qrData: qrData,
+            }),
           });
 
           const data = await res.json();
@@ -312,12 +339,12 @@ export default function HomePage() {
             loadServicios();
           }, 2000);
         } catch (err) {
-          console.error('Error al imprimir voucher:', err);
+          console.error("Error al imprimir voucher:", err);
           Swal.fire({
-            icon: 'warning',
-            title: 'Pago exitoso',
-            text: 'Pago procesado pero hubo un error al imprimir el comprobante',
-            confirmButtonText: 'Aceptar'
+            icon: "warning",
+            title: "Pago exitoso",
+            text: "Pago procesado pero hubo un error al imprimir el comprobante",
+            confirmButtonText: "Aceptar",
           });
         }
       } else {
@@ -327,14 +354,14 @@ export default function HomePage() {
         }, 1000);
       }
     } catch (err) {
-      console.error('Error en pago:', err);
-      setError(err?.message ?? 'Error al procesar pago');
+      console.error("Error en pago:", err);
+      setError(err?.message ?? "Error al procesar pago");
       Swal.close();
       Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        html: `<p>${err?.message ?? 'Error inesperado'}</p>`,
-        confirmButtonText: 'Aceptar'
+        icon: "error",
+        title: "Error",
+        html: `<p>${err?.message ?? "Error inesperado"}</p>`,
+        confirmButtonText: "Aceptar",
       });
     } finally {
       setLoading(false);
@@ -346,8 +373,8 @@ export default function HomePage() {
       const data = await getServicios();
       setServicios(data || []);
     } catch (err) {
-      console.error('Error cargando servicios:', err);
-      setError(err?.message ?? 'Error al cargar servicios');
+      console.error("Error cargando servicios:", err);
+      setError(err?.message ?? "Error al cargar servicios");
     }
   };
 
@@ -357,7 +384,7 @@ export default function HomePage() {
     try {
       await loadServicios();
     } catch (err) {
-      setError(err?.message ?? 'Error al cargar servicios');
+      setError(err?.message ?? "Error al cargar servicios");
     } finally {
       setLoading(false);
     }
@@ -368,20 +395,13 @@ export default function HomePage() {
       className="min-h-screen w-full flex flex-col items-center justify-center font-sans bg-gradient-to-b from-blue-400 to-blue-100 "
       style={{ padding: "150px 80px" }}
     >
-
       <Header onClick={() => window.location.reload()} />
 
-      <div
-        className="font-bold mb-20 text-white text-8xl text-center"
-      >
+      <div className="font-bold mb-20 text-white text-8xl text-center">
         ¡Selecciona tu Servicio!
       </div>
 
-      {error && (
-        <div className="text-red-600 text-4xl">
-          {error}
-        </div>
-      )}
+      {error && <div className="text-red-600 text-4xl">{error}</div>}
 
       {loading ? (
         <div className="flex items-center justify-center text-5xl mb-15 text-white gap-5">
@@ -390,7 +410,7 @@ export default function HomePage() {
         </div>
       ) : (
         <div className="flex flex-col w-full gap-20 mb-20">
-          {servicios.map(s => (
+          {servicios.map((s) => (
             <Card
               key={s.id}
               image={s.nombre}
@@ -402,7 +422,6 @@ export default function HomePage() {
           ))}
         </div>
       )}
-
 
       <ProcessSteps />
 
