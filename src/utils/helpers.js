@@ -1,58 +1,60 @@
-
 export function voucher(
-    codigoComercio,
-    formattedDate,
-    formattedTime,
-    terminalId,
-    cardNumber,
-    cardType,
-    monto,
-    accountNumber,
-    operationNumber,
-    tipo,
-    authCode,
-    numero_cuota,
-    tipo_cuota,
-    monto_cuota) {
-    const content =
-        '                                          \n' +
-        '                                          \n' +
-        '              COMPROBANTE DE VENTA\n' +
-        '                                          \n' +
-        '                  EMPRESA123\n' +
-        '           Direccion calle 1, Comuna ABC\n' +
-        // `CODIGO DE COMERCIO: ${codigoComercio}\n` +
-        '                  CIUDAD123\n' +
-        '                                          \n' +
-        `               FECHA: ${formattedDate}\n` +
-        `                 HORA: ${formattedTime}\n` +
-        // `TERMINAL: ${terminalId}\n` +
-        '                                          \n' +
-        // `NUMERO DE TARJETA: **${cardNumber}\n` +
-        // `TIPO DE TARJETA: ${cardType}\n` +
-        `                 TOTAL: $${monto}\n` +
-        `               NUMERO DE CUOTAS: ${numero_cuota}\n` +
-        `            TIPO DE CUOTAS: ${tipo_cuota}\n` +
-        `                 MONTO CUOTA: $${monto_cuota}\n` +
-        // `NUMERO DE BOLETA: ${accountNumber}\n` +
-        `              NUMERO DE OPERACION: ${operationNumber}\n` +
-        `                SERVICIO: ${tipo}\n` +
-        `              AUTORIZACION: ${authCode}\n` +
-        '                                          \n' +
-        '             GRACIAS POR SU COMPRA\n' +
-        '               VALIDO COMO BOLETA\n';
+  codigoComercio,
+  formattedDate,
+  formattedTime,
+  terminalId,
+  cardNumber,
+  cardType,
+  monto,
+  accountNumber,
+  operationNumber,
+  tipo,
+  authCode,
+  numero_cuota,
+  tipo_cuota,
+  monto_cuota,
+) {
+  const content =
+    "                                          \n" +
+    "                                          \n" +
+    "              COMPROBANTE DE VENTA\n" +
+    "               VENTA COPIA CLIENTE           \n" +
+    "                  INMOBILIARIA E INVERSIONES\n" +
+    "                  P Y R S.A\n" +
+    "                  RUT: 96.971.370-5\n" +
+    "                  SAN BORJA N1251, ESTACION CENTRAL\n" +
+    "                  Santiago - Chile\n" +
+    // `CODIGO DE COMERCIO: ${codigoComercio}\n` +
+    "                                          \n" +
+    `               FECHA: ${formattedDate}\n` +
+    `                 HORA: ${formattedTime}\n` +
+    // `TERMINAL: ${terminalId}\n` +
+    "                                          \n" +
+    // `NUMERO DE TARJETA: **${cardNumber}\n` +
+    // `TIPO DE TARJETA: ${cardType}\n` +
+    `                 TOTAL: $${monto}\n` +
+    `               NUMERO DE CUOTAS: ${numero_cuota}\n` +
+    `            TIPO DE CUOTAS: ${tipo_cuota}\n` +
+    `                 MONTO CUOTA: $${monto_cuota}\n` +
+    // `NUMERO DE BOLETA: ${accountNumber}\n` +
+    `              NUMERO DE OPERACION: ${operationNumber}\n` +
+    `                SERVICIO: ${tipo}\n` +
+    `              AUTORIZACION: ${authCode}\n` +
+    "                                          \n" +
+    "             GRACIAS POR SU COMPRA\n" +
+    "               VALIDO COMO BOLETA\n";
 
-    return content;
+  return content;
 }
 
 export function generateCode(length = 6) {
-    const array = new Uint32Array(length);
-    crypto.getRandomValues(array);
+  const array = new Uint32Array(length);
+  crypto.getRandomValues(array);
 
-    let code = '';
-    for (let i = 0; i < length; i++) {
-        code += (array[i] % 10).toString();
-    }
+  let code = "";
+  for (let i = 0; i < length; i++) {
+    code += (array[i] % 10).toString();
+  }
 
-    return code;
+  return code;
 }
