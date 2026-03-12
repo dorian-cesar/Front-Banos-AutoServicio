@@ -18,12 +18,12 @@ export function voucher(
     "                                          \n" +
     "                                          \n" +
     "              COMPROBANTE DE VENTA\n" +
-    "               VENTA COPIA CLIENTE           \n" +
-    "                  INMOBILIARIA E INVERSIONES\n" +
-    "                  P Y R S.A\n" +
-    "                  RUT: 96.971.370-5\n" +
-    "                  SAN BORJA N1251, ESTACION CENTRAL\n" +
-    "                  Santiago - Chile\n" +
+    "               VENTA COPIA CLIENTE\n" +
+    "           INMOBILIARIA E INVERSIONES\n" +
+    "                   P Y R S.A\n" +
+    "               RUT: 96.971.370-5\n" +
+    "        SAN BORJA N1251, ESTACION CENTRAL\n" +
+    "                Santiago - Chile\n" +
     // `CODIGO DE COMERCIO: ${codigoComercio}\n` +
     "                                          \n" +
     `               FECHA: ${formattedDate}\n` +
@@ -37,9 +37,9 @@ export function voucher(
     `            TIPO DE CUOTAS: ${tipo_cuota}\n` +
     `                 MONTO CUOTA: $${monto_cuota}\n` +
     // `NUMERO DE BOLETA: ${accountNumber}\n` +
-    `              NUMERO DE OPERACION: ${operationNumber}\n` +
+    `             NUMERO DE OPERACION: ${operationNumber}\n` +
     `                SERVICIO: ${tipo}\n` +
-    `              AUTORIZACION: ${authCode}\n` +
+    `               AUTORIZACION: ${authCode}\n` +
     "                                          \n" +
     "             GRACIAS POR SU COMPRA\n" +
     "               VALIDO COMO BOLETA\n";
