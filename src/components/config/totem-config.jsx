@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { getTotemConfig } from "@/services/totem.service";
 import DotsLoader from "../loader/dots-loader";
 
@@ -45,8 +46,16 @@ export default function TotemConfig({ onSuccess }) {
 
       <div className="relative w-full max-w-2xl bg-white/10 backdrop-blur-xl border border-white/20 p-16 rounded-[40px] shadow-2xl animate-in fade-in zoom-in duration-500">
         <div className="flex flex-col items-center text-center space-y-8">
-          <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center shadow-lg transform -rotate-6">
-            <span className="text-4xl font-bold text-[#013ba7]">WIT</span>
+          <div className="relative w-full h-32 overflow-hidden flex items-center justify-center mb-0">
+            <div className="relative w-[300px] h-[200px] -mt-36">
+              <Image
+                src="/logo-wit-blanco.png"
+                alt="Logo WIT"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -54,7 +63,7 @@ export default function TotemConfig({ onSuccess }) {
               Configuración
             </h2>
             <p className="text-2xl text-blue-100/80 font-medium">
-              Ingrese el identificador único del punto de acceso
+              Ingrese el identificador único del tótem
             </p>
           </div>
 
@@ -90,23 +99,29 @@ export default function TotemConfig({ onSuccess }) {
                 </div>
               ) : (
                 <>
-                  <span>Iniciar Aplicación</span>
-                  <svg 
-                    className="w-10 h-10 group-hover:translate-x-2 transition-transform" 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
+                  <span>Iniciar Tótem</span>
+                  <svg
+                    className="w-10 h-10 group-hover:translate-x-2 transition-transform"
+                    fill="none"
+                    viewBox="0 0 24 24"
                     stroke="currentColor"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={3}
+                      d="M13 7l5 5m0 0l-5 5m5-5H6"
+                    />
                   </svg>
                 </>
               )}
             </button>
           </form>
 
-          <p className="text-xl text-white/40 font-semibold pt-4">
-            v1.2.0 • Wit Software Solutions
-          </p>
+          <div className="text-lg text-white/40 font-semibold pt-4">
+            <p>WIT INNOVACION Y TECNOLOGIA SPA</p>
+            <p>v1.2.0</p>
+          </div>
         </div>
       </div>
     </div>
