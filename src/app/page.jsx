@@ -14,6 +14,7 @@ import { getIp } from "@/services/totem.service";
 import { checkPosStatus, postPayment } from "@/services/amos.service";
 import { getServicios, postVentas } from "@/services/banio.service";
 import { createUser } from "@/services/torniquete.service";
+import TotemConfig from "@/components/config/totem-config";
 
 import { voucher, generateCode } from "@/utils/helpers";
 
@@ -23,6 +24,7 @@ export default function HomePage() {
   const [error, setError] = useState(null);
   const [disabled, setDisabled] = useState(true);
   const [posStatus, setPosStatus] = useState(null);
+  const [isIdentified, setIsIdentified] = useState(false);
 
   // refs para controlar estado fuera del render
   const isMountedRef = useRef(true);
@@ -31,7 +33,13 @@ export default function HomePage() {
   const monitorAbortRef = useRef(null);
 
   useEffect(() => {
-    localStorage.clear();
+    // Solo ejecutamos la inicialización si ya estamos identificados
+    if (!isIdentified) {
+      localStorage.clear();
+      setLoading(false);
+      return;
+    }
+
     let mounted = true;
     let intervalId;
 
@@ -41,24 +49,26 @@ export default function HomePage() {
         setLoading(true);
         setDisabled(true);
 
-        // 1) Obtener IP con reintento
+        // 1) El IP ya viene del proceso de identificación, lo leemos de localStorage
+        const storedIp = localStorage.getItem("ip");
+        console.log("Iniciando con IP identificada:", storedIp);
+
+        /* 
+        // === LÓGICA ANTERIOR DE OBTENCIÓN DE IP (COMENTADA) ===
         let dataIP = {};
         while (mounted && !dataIP.ip) {
           try {
             dataIP = await getIp();
             if (!dataIP || !dataIP.ip) throw new Error("IP inválida");
-
             localStorage.setItem("ip", dataIP.ip);
-            // localStorage.setItem("ip_totem", dataIP.ip_totem);
-            if (dataIP.ubicacion)
-              localStorage.setItem("site", dataIP.ubicacion);
-
+            if (dataIP.ubicacion) localStorage.setItem("site", dataIP.ubicacion);
             console.log("IP obtenida:", dataIP.ip);
           } catch (err) {
             console.warn("Error al obtener IP:", err.message || err);
             await new Promise((r) => setTimeout(r, 3000));
           }
         }
+        */
 
         // 2) Verificar POS antes de cargar servicios
         const online = await checkPosStatus();
@@ -74,7 +84,7 @@ export default function HomePage() {
             setError("No se pudieron cargar los servicios");
           }
 
-          // 3) Iniciar monitor cada 10s
+          // 3) Iniciar monitor cada 15s
           intervalId = setInterval(async () => {
             try {
               const status = await checkPosStatus();
@@ -105,7 +115,7 @@ export default function HomePage() {
       mounted = false;
       if (intervalId) clearInterval(intervalId);
     };
-  }, []);
+  }, [isIdentified]);
 
   const createUserWithRetries = async (
     token,
@@ -390,12 +400,21 @@ export default function HomePage() {
     }
   };
 
+  if (!isIdentified) {
+    return <TotemConfig onSuccess={() => setIsIdentified(true)} />;
+  }
+
+  const handleReset = () => {
+    setError(null);
+    loadServicios();
+  };
+
   return (
     <div
       className="min-h-screen w-full flex flex-col items-center justify-center font-sans bg-gradient-to-b from-blue-400 to-blue-100 "
       style={{ padding: "150px 80px" }}
     >
-      <Header onClick={() => window.location.reload()} />
+      <Header onClick={handleReset} />
 
       <div className="font-bold mb-20 text-white text-8xl text-center">
         ¡Selecciona tu Servicio!

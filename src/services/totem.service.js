@@ -46,3 +46,28 @@ export async function getCredentials() {
     throw err;
   }
 }
+
+export async function getTotemConfig(id) {
+  try {
+    const CONFIG_URL = process.env.NEXT_PUBLIC_TOTEM_CONFIG_URL || "https://api.wit.la/totem-config";
+    
+    // Simulación de delay para UX
+    await new Promise(resolve => setTimeout(resolve, 800));
+
+    // Simulación de datos basados en el ID (Placeholder hasta tener el endpoint)
+    if (id === "1001") {
+      return {
+        ip: "192.168.1.100",
+        ubicacion: "Estación Central - Baño A"
+      };
+    } else {
+      return {
+        ip: "10.0.0.1",
+        ubicacion: `Ubicación Totem ${id}`
+      };
+    }
+  } catch (err) {
+    console.error("[totemService] getTotemConfig error:", err);
+    throw err;
+  }
+}
