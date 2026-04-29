@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { getTotemConfig } from "@/services/totem.service";
+import { getIp } from "@/services/totem.service";
 import DotsLoader from "../loader/dots-loader";
 
 export default function TotemConfig({ onSuccess }) {
@@ -21,7 +21,7 @@ export default function TotemConfig({ onSuccess }) {
     setError("");
 
     try {
-      const config = await getTotemConfig(totemId);
+      const config = await getIp(totemId);
       if (config && config.ip) {
         localStorage.setItem("ip", config.ip);
         localStorage.setItem("site", config.ubicacion);

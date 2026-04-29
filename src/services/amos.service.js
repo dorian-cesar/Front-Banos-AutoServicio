@@ -27,36 +27,35 @@ export async function postPayment(payload) {
     if (!ip) throw new Error("No hay IP en localStorage");
 
     // === MODO SIMULACIÓN: RETORNO DE PAGO APROBADO ===
-    console.warn("⚠️ MODO SIMULACIÓN: Procesando pago ficticio...");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    // console.warn("⚠️ MODO SIMULACIÓN: Procesando pago ficticio...");
+    // await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    const mockResponse = {
-      message: "Venta aprobada",
-      data: {
-        approved: true,
-        rawData: {
-          realDate: "290426",
-          realTime: "133000",
-          amount: payload.amount,
-          commerceCode: "597012345678",
-          terminalId: "TERM001",
-          last4Digits: "1234",
-          cardType: "DEBITO",
-          operationNumber: "000123",
-          authorizationCode: "123456",
-          accountNumber: "---",
-          shareType: "SIN CUOTA",
-          sharesNumber: "0",
-          sharesAmount: "0",
-          responseMessage: "APROBADO",
-        },
-      },
-    };
+    // const mockResponse = {
+    //   message: "Venta aprobada",
+    //   data: {
+    //     approved: true,
+    //     rawData: {
+    //       realDate: "290426",
+    //       realTime: "133000",
+    //       amount: payload.amount,
+    //       commerceCode: "597012345678",
+    //       terminalId: "TERM001",
+    //       last4Digits: "1234",
+    //       cardType: "DEBITO",
+    //       operationNumber: "000123",
+    //       authorizationCode: "123456",
+    //       accountNumber: "---",
+    //       shareType: "SIN CUOTA",
+    //       sharesNumber: "0",
+    //       sharesAmount: "0",
+    //       responseMessage: "APROBADO",
+    //     },
+    //   },
+    // };
 
-    return mockResponse;
+    // return mockResponse;
 
-    /* 
-    // === CÓDIGO DE PRODUCCIÓN (COMENTADO) ===
+    // === CÓDIGO DE PRODUCCIÓN ===
     const res = await fetch(`https://${ip}:3000/api/payment`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -69,7 +68,6 @@ export async function postPayment(payload) {
 
     const data = await res.json();
     return data;
-    */
   } catch (err) {
     console.error("[amosService] postPayment error:", err);
     throw err;

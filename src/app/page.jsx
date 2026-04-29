@@ -215,29 +215,6 @@ export default function HomePage() {
 
       const qrData = ticketNumber;
 
-      // Crear usuario con reintentos
-      try {
-        await createUserWithRetries(qrData, {
-          maxAttempts: 4,
-          initialDelay: 1000,
-        });
-        console.log("Usuario creado correctamente: ", qrData);
-      } catch (createErr) {
-        console.error("Fallo al crear usuario tras reintentos:", createErr);
-        Swal.close();
-        setError(
-          createErr?.message ??
-            "No se pudo crear el acceso en el sistema del torniquete",
-        );
-        Swal.fire({
-          icon: "error",
-          title: "Error creando acceso",
-          html: `<p>${createErr?.message ?? "No se pudo crear el acceso. Intente nuevamente."}</p>`,
-          confirmButtonText: "Aceptar",
-        });
-        return;
-      }
-
       // Procesar pago
       const payload = { amount, ticketNumber };
       console.log("Enviando pago:", payload);
@@ -248,6 +225,25 @@ export default function HomePage() {
       showPaymentResult(result, amount);
 
       if (result.data?.approved) {
+        // Crear usuario en el torniquete después de que el pago sea aprobado
+        const qrData = ticketNumber;
+        try {
+          await createUserWithRetries(qrData, {
+            maxAttempts: 4,
+            initialDelay: 1000,
+          });
+          console.log("Usuario creado correctamente post-pago: ", qrData);
+        } catch (createErr) {
+          console.error("Fallo al crear usuario post-pago:", createErr);
+          // Notificar pero no detener el flujo ya que el pago fue exitoso
+          Swal.fire({
+            icon: "warning",
+            title: "Acceso con problemas",
+            text: "El pago fue aprobado, pero hubo un error al habilitar el torniquete. Por favor contacte a soporte.",
+            confirmButtonText: "Entendido",
+          });
+        }
+
         const fecha = result.data.rawData.realDate;
         const hora = result.data.rawData.realTime;
         const monto = result.data.rawData.amount;
