@@ -34,6 +34,29 @@ async function safeFetch(endpoint, options = {}) {
     }
 }
 
+async function handleRefresh() {
+    if (refreshingPromise) return refreshingPromise;
+
+    refreshingPromise = (async () => {
+        try {
+            console.log("[banioService] Autenticando...");
+            const creds = await getCredentials();
+            const loginResp = await login(creds.email, creds.password);
+            if (!loginResp || !loginResp.token) throw new Error("Login no devolvió token");
+            setToken(loginResp.token, loginResp.user);
+            return loginResp.token;
+        } finally {
+            // Se limpia abajo
+        }
+    })();
+
+    try {
+        return await refreshingPromise;
+    } finally {
+        refreshingPromise = null;
+    }
+}
+
 async function fetchWithToken(endpoint, options = {}, { maxRefreshAttempts = 1 } = {}) {
 
     let token = getToken();
@@ -45,71 +68,40 @@ async function fetchWithToken(endpoint, options = {}, { maxRefreshAttempts = 1 }
             ...(tokenToUse ? { Authorization: `Bearer ${tokenToUse}` } : {}),
         };
 
-        // merge options but ensure headers merged correctly
         const opts = { ...options, headers };
         return safeFetch(endpoint, opts);
     };
 
-    // intento inicial
+    // 1) Si no hay token, intentar obtenerlo antes de la primera petición
+    if (!token && maxRefreshAttempts > 0) {
+        try {
+            token = await handleRefresh();
+        } catch (err) {
+            console.warn("[banioService] No se pudo obtener token inicial:", err.message);
+        }
+    }
+
     let res;
     try {
         res = await doFetch(token);
     } catch (err) {
-        // fallo de red en el primer intento
         throw err;
     }
 
-    // si 401 -> renovar una vez (o hasta maxRefreshAttempts)
+    // 2) Si 401 -> renovar y reintentar una vez
     if (res && res.status === 401 && maxRefreshAttempts > 0) {
-        // Si ya hay una renovación en curso, espera esa promesa
-        if (refreshingPromise) {
-            try {
-                await refreshingPromise;
-            } catch (e) {
-                // la renovación falló
-                // continuar para intentar renovar localmente abajo
-            }
-            token = getToken();
+        try {
+            token = await handleRefresh();
             res = await doFetch(token);
-        } else {
-            // crea la promesa de renovación
-            refreshingPromise = (async () => {
-                try {
-                    console.log("[banioService] Token expirado, reautenticando...");
-                    const creds = await getCredentials();
-                    const loginResp = await login(creds.email, creds.password);
-                    if (!loginResp || !loginResp.token) throw new Error("Login no devolvió token");
-                    setToken(loginResp.token, loginResp.user);
-                    return loginResp.token;
-                } finally {
-                    // al terminar, limpiar refreshingPromise (se hace en finally)
-                }
-            })();
-
-            try {
-                const newToken = await refreshingPromise;
-                token = newToken;
-            } catch (err) {
-                // renovación falló
-                refreshingPromise = null;
-                throw new Error("No se pudo renovar token: " + (err.message || err));
-            } finally {
-                refreshingPromise = null;
-            }
-
-            // reintentar la petición con el token nuevo
-            try {
-                res = await doFetch(token);
-            } catch (err) {
-                throw err;
-            }
+        } catch (err) {
+            console.error("[banioService] Error reintentando tras 401:", err);
+            // si el reintento falla, res seguirá siendo el 401 o el error del doFetch
         }
     }
 
     if (!res) throw new Error("[banioService] No response from server");
 
     if (!res.ok) {
-        // leer body si es json para debug
         let message = `Status ${res.status}`;
         try {
             const errBody = await res.text();
@@ -118,11 +110,9 @@ async function fetchWithToken(endpoint, options = {}, { maxRefreshAttempts = 1 }
         throw new Error(`[banioService] Error en fetch ${endpoint}: ${message}`);
     }
 
-    // parsear JSON seguro
     try {
         return await res.json();
     } catch (err) {
-        // respuesta no JSON
         const text = await res.text().catch(() => null);
         return text;
     }

@@ -27,7 +27,6 @@ export async function postPayment(payload) {
     if (!ip) throw new Error("No hay IP en localStorage");
 
     // === MODO SIMULACIÓN: RETORNO DE PAGO APROBADO ===
-    // console.warn("⚠️ MODO SIMULACIÓN: Procesando pago ficticio...");
     // await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // const mockResponse = {
@@ -61,8 +60,6 @@ export async function postPayment(payload) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-
-    console.log("res payment:", res);
 
     if (!res.ok) throw new Error("Error al enviar la venta: " + res.status);
 
