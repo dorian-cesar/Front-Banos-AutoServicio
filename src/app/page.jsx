@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 
@@ -10,7 +10,6 @@ import Footer from "@/components/footer/footer";
 import ProcessSteps from "@/components/loader/process-steps";
 import DotsLoader from "@/components/loader/dots-loader";
 
-import { getIp } from "@/services/totem.service";
 import { checkPosStatus, postPayment } from "@/services/amos.service";
 import { getServicios, postVentas } from "@/services/banio.service";
 import { createUser } from "@/services/torniquete.service";
@@ -25,12 +24,6 @@ export default function HomePage() {
   const [disabled, setDisabled] = useState(true);
   const [posStatus, setPosStatus] = useState(null);
   const [isIdentified, setIsIdentified] = useState(false);
-
-  // refs para controlar estado fuera del render
-  const isMountedRef = useRef(true);
-  const monitorIntervalRef = useRef(null);
-  const monitorInFlightRef = useRef(false);
-  const monitorAbortRef = useRef(null);
 
   useEffect(() => {
     // Solo ejecutamos la inicialización si ya estamos identificados
@@ -52,23 +45,6 @@ export default function HomePage() {
         // 1) El IP ya viene del proceso de identificación, lo leemos de localStorage
         const storedIp = localStorage.getItem("ip");
         console.log("Iniciando con IP identificada:", storedIp);
-
-        /* 
-        // === LÓGICA ANTERIOR DE OBTENCIÓN DE IP (COMENTADA) ===
-        let dataIP = {};
-        while (mounted && !dataIP.ip) {
-          try {
-            dataIP = await getIp();
-            if (!dataIP || !dataIP.ip) throw new Error("IP inválida");
-            localStorage.setItem("ip", dataIP.ip);
-            if (dataIP.ubicacion) localStorage.setItem("site", dataIP.ubicacion);
-            console.log("IP obtenida:", dataIP.ip);
-          } catch (err) {
-            console.warn("Error al obtener IP:", err.message || err);
-            await new Promise((r) => setTimeout(r, 3000));
-          }
-        }
-        */
 
         // 2) Verificar POS antes de cargar servicios
         const online = await checkPosStatus();
