@@ -9,9 +9,19 @@ export async function getIp(totemId) {
       },
     });
 
-    if (!res.ok) throw new Error("Error obteniendo IP: " + res.status);
+    let data;
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      // Si no es JSON y no es ok, lanzamos error genérico
+      if (!res.ok) throw new Error("Error en servidor: " + res.status);
+      throw parseErr;
+    }
 
-    const data = await res.json();
+    if (!res.ok || data.ok === false) {
+      throw new Error(data.message || "Error al obtener configuración");
+    }
+
     return data.data;
   } catch (err) {
     console.error("[ipService] getIp error:", err);

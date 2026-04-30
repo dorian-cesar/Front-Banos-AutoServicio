@@ -47,7 +47,11 @@ export default function TotemConfig({ onSuccess }) {
         throw new Error("No se obtuvo configuración válida");
       }
     } catch (err) {
-      setError("ID de Tótem inválido o error de conexión");
+      if (err.name === "TypeError") {
+        setError("Error de conexión: No se pudo conectar con el backend local");
+      } else {
+        setError("ID de tótem inválido" || err.message);
+      }
       console.error(err);
     } finally {
       setLoading(false);

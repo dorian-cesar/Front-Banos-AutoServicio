@@ -169,7 +169,7 @@ export default function HomePage() {
 
     setLoading(true);
 
-    const ticketNumber = generateCode();
+    const ticketNumber = await generateCode();
 
     Swal.fire({
       title: "Procesando pago",
@@ -188,8 +188,6 @@ export default function HomePage() {
       if (!posReady) {
         throw new Error("POS no disponible. Verifique la conexión.");
       }
-
-      const qrData = ticketNumber;
 
       // Procesar pago
       const payload = { amount, ticketNumber };
@@ -317,9 +315,9 @@ export default function HomePage() {
           window.location.href = data.rawbt;
 
           // Recargar servicios después de un tiempo
-          setTimeout(() => {
-            loadServicios();
-          }, 2000);
+          // setTimeout(() => {
+          //   loadServicios();
+          // }, 2000);
         } catch (err) {
           console.error("Error al imprimir voucher:", err);
           Swal.fire({
@@ -331,9 +329,9 @@ export default function HomePage() {
         }
       } else {
         // Si el pago no fue aprobado, recargar servicios
-        setTimeout(() => {
-          loadServicios();
-        }, 1000);
+        // setTimeout(() => {
+        //   loadServicios();
+        // }, 1000);
       }
     } catch (err) {
       console.error("Error en pago:", err);
