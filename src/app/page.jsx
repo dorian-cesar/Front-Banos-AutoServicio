@@ -183,8 +183,6 @@ export default function HomePage() {
 
     setLoading(true);
 
-    const ticketNumber = generateCode();
-
     Swal.fire({
       title: "Procesando pago",
       html: `Monto: <b>${amount}</b><br>Siga las instrucciones del equipo...`,
@@ -203,33 +201,9 @@ export default function HomePage() {
         throw new Error("POS no disponible. Verifique la conexión.");
       }
 
-      const qrData = ticketNumber;
-
-      // Crear usuario con reintentos
-      try {
-        await createUserWithRetries(qrData, {
-          maxAttempts: 4,
-          initialDelay: 1000,
-        });
-        console.log("Usuario creado correctamente: ", qrData);
-      } catch (createErr) {
-        console.error("Fallo al crear usuario tras reintentos:", createErr);
-        Swal.close();
-        setError(
-          createErr?.message ??
-            "No se pudo crear el acceso en el sistema del torniquete",
-        );
-        Swal.fire({
-          icon: "error",
-          title: "Error creando acceso",
-          html: `<p>${createErr?.message ?? "No se pudo crear el acceso. Intente nuevamente."}</p>`,
-          confirmButtonText: "Aceptar",
-        });
-        return;
-      }
-
-      // Procesar pago
-      const payload = { amount, ticketNumber };
+      // Procesar pago (usamos un ticketNumber temporal para el registro inicial del POS)
+      const tempTicket = Math.floor(100000 + Math.random() * 900000).toString();
+      const payload = { amount, ticketNumber: tempTicket };
       console.log("Enviando pago:", payload);
 
       const result = await postPayment(payload);
@@ -238,6 +212,26 @@ export default function HomePage() {
       showPaymentResult(result, amount);
 
       if (result.data?.approved) {
+        // GENERAR CÓDIGO REAL Y CREAR USUARIO SOLO SI EL PAGO FUE EXITOSO
+        const ticketNumber = await generateCode();
+        const qrData = ticketNumber;
+
+        try {
+          await createUserWithRetries(qrData, {
+            maxAttempts: 4,
+            initialDelay: 1000,
+          });
+          console.log("Usuario creado correctamente post-pago: ", qrData);
+        } catch (createErr) {
+          console.error("Fallo al crear usuario post-pago:", createErr);
+          // Notificar pero no detener el flujo ya que el pago fue exitoso
+          Swal.fire({
+            icon: "warning",
+            title: "Acceso con problemas",
+            text: "El pago fue aprobado, pero hubo un error al habilitar el torniquete. Por favor contacte a soporte.",
+            confirmButtonText: "Entendido",
+          });
+        }
         const fecha = result.data.rawData.realDate;
         const hora = result.data.rawData.realTime;
         const monto = result.data.rawData.amount;
