@@ -183,7 +183,7 @@ export default function HomePage() {
       }
     }
 
-    setLoading(true);
+    const ticketNumber = await generateCode();
 
     Swal.fire({
       title: t("page.processingPayment"),
@@ -203,28 +203,6 @@ export default function HomePage() {
         throw new Error(t("page.posUnavailable"));
       }
 
-      const qrData = ticketNumber;
-
-      // Crear usuario con reintentos
-      try {
-        await createUserWithRetries(qrData, {
-          maxAttempts: 4,
-          initialDelay: 1000,
-        });
-        console.log("Usuario creado correctamente: ", qrData);
-      } catch (createErr) {
-        console.error("Fallo al crear usuario tras reintentos:", createErr);
-        Swal.close();
-        setError(createErr?.message ?? t("page.cannotCreateAccessSystem"));
-        Swal.fire({
-          icon: "error",
-          title: t("page.errorCreatingAccess"),
-          html: `<p>${createErr?.message ?? t("page.cannotCreateAccessTryAgain")}</p>`,
-          confirmButtonText: t("page.accept"),
-        });
-        return;
-      }
-
       // Procesar pago
       const payload = { amount, ticketNumber };
       console.log("Enviando pago:", payload);
@@ -235,8 +213,7 @@ export default function HomePage() {
       showPaymentResult(result, amount);
 
       if (result.data?.approved) {
-        // GENERAR CÓDIGO REAL Y CREAR USUARIO SOLO SI EL PAGO FUE EXITOSO
-        const ticketNumber = await generateCode();
+        // Registramos en el torniquete el ticketNumber que ya validamos antes del pago
         const qrData = ticketNumber;
 
         try {
