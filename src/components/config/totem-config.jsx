@@ -3,10 +3,12 @@
 import { useState } from "react";
 import Image from "next/image";
 import { getIp } from "@/services/totem.service";
+import { useLanguage } from "@/context/LanguageContext";
 import DotsLoader from "../loader/dots-loader";
 import NumericKeypad from "../ui/numeric-keypad";
 
 export default function TotemConfig({ onSuccess }) {
+  const { t } = useLanguage();
   const [totemId, setTotemId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -29,7 +31,7 @@ export default function TotemConfig({ onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!totemId) {
-      setError("Por favor ingrese un ID");
+      setError(t("config.errorEmpty"));
       return;
     }
 
@@ -44,13 +46,13 @@ export default function TotemConfig({ onSuccess }) {
         localStorage.setItem("totemId", totemId);
         onSuccess();
       } else {
-        throw new Error("No se obtuvo configuración válida");
+        throw new Error(t("config.errorInvalid"));
       }
     } catch (err) {
       if (err.name === "TypeError") {
-        setError("Error de conexión: No se pudo conectar con el backend local");
+        setError(t("config.errorConnection"));
       } else {
-        setError("ID de tótem inválido" || err.message);
+        setError(t("config.errorInvalid"));
       }
       console.error(err);
     } finally {
@@ -80,10 +82,10 @@ export default function TotemConfig({ onSuccess }) {
 
           <div className="space-y-4">
             <h2 className="text-6xl font-black text-white tracking-tight">
-              Configuración
+              {t("config.title")}
             </h2>
             <p className="text-2xl text-blue-100/80 font-medium">
-              Ingrese el identificador único del tótem
+              {t("config.subtitle")}
             </p>
           </div>
 
@@ -93,7 +95,7 @@ export default function TotemConfig({ onSuccess }) {
                 type="number"
                 value={totemId}
                 onChange={(e) => setTotemId(e.target.value)}
-                placeholder="Ej: 1001"
+                placeholder={t("config.placeholder")}
                 disabled={loading}
                 inputMode="none"
                 className="w-full bg-white/5 border-2 border-white/10 text-white text-5xl py-8 px-10 rounded-3xl outline-none focus:border-white/40 transition-all duration-300 placeholder:text-white/20 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -115,12 +117,12 @@ export default function TotemConfig({ onSuccess }) {
             >
               {loading ? (
                 <div className="flex items-center gap-4">
-                  <span>Validando</span>
+                  <span>{t("config.loading")}</span>
                   <DotsLoader />
                 </div>
               ) : (
                 <>
-                  <span>Iniciar Tótem</span>
+                  <span>{t("config.submit")}</span>
                   <svg
                     className="w-10 h-10 group-hover:translate-x-2 transition-transform"
                     fill="none"

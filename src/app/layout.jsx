@@ -16,6 +16,8 @@ export const metadata = {
   description: "Punto de venta para baños",
 };
 
+import { LanguageProvider } from "@/context/LanguageContext";
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
@@ -28,7 +30,9 @@ export default function RootLayout({ children }) {
           padding: "0"
         }}
       >
-        {children}
+        <LanguageProvider>
+          {children}
+        </LanguageProvider>
       </body>
     </html>
   );
