@@ -1,24 +1,27 @@
 "use client"
 import { MousePointerClickIcon, CreditCardIcon, QrCodeIcon, ChevronRight } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function ProcessSteps() {
+    const { t } = useLanguage();
+    
     const steps = [
         {
             number: 1,
-            title: "Elegir",
-            description: "Escoge tu servicio",
+            title: t("step1.title"),
+            description: t("step1.desc"),
             icon: (<MousePointerClickIcon size={48}/>),
         },
         {
             number: 2,
-            title: "Pagar",
-            description: "Usa tu tarjeta",
+            title: t("step2.title"),
+            description: t("step2.desc"),
             icon: (<CreditCardIcon size={48}/>),
         },
         {
             number: 3,
-            title: "Recibir",
-            description: "Obtén tu ticket",
+            title: t("step3.title"),
+            description: t("step3.desc"),
             icon: (<QrCodeIcon size={48}/>),
         },
     ]

@@ -9,6 +9,7 @@ import Card from "@/components/card/card";
 import Footer from "@/components/footer/footer";
 import ProcessSteps from "@/components/loader/process-steps";
 import DotsLoader from "@/components/loader/dots-loader";
+import { useLanguage } from "@/context/LanguageContext";
 
 import { getIp } from "@/services/totem.service";
 import { checkPosStatus, postPayment } from "@/services/amos.service";
@@ -18,6 +19,7 @@ import { createUser } from "@/services/torniquete.service";
 import { voucher, generateCode } from "@/utils/helpers";
 
 export default function HomePage() {
+  const { t } = useLanguage();
   const [servicios, setServicios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -71,7 +73,7 @@ export default function HomePage() {
             setServicios(data || []);
           } catch (err) {
             console.error("Error cargando servicios:", err.message || err);
-            setError("No se pudieron cargar los servicios");
+            setError(t("page.errorLoading"));
           }
 
           // 3) Iniciar monitor cada 10s
@@ -92,7 +94,7 @@ export default function HomePage() {
       } catch (err) {
         console.error("Error inicializando:", err);
         if (mounted) {
-          setError("Error inicializando aplicación");
+          setError(t("page.errorInit"));
           setLoading(false);
           setDisabled(true);
         }
@@ -147,8 +149,8 @@ export default function HomePage() {
     if (approved) {
       Swal.fire({
         icon: "success",
-        title: "Pago Aprobado",
-        html: `<p>${message}</p><p><strong>Monto:</strong> ${amount}</p>`,
+        title: t("page.paymentApproved"),
+        html: `<p>${message}</p><p><strong>${t("page.amount")}:</strong> ${amount}</p>`,
         showConfirmButton: false,
         timer: 2000, // se cierra automáticamente después de 2 segundos
         timerProgressBar: true,
@@ -156,9 +158,9 @@ export default function HomePage() {
     } else {
       Swal.fire({
         icon: "error",
-        title: "Pago Fallido",
-        html: `<p>${message}</p><p><strong>Monto:</strong> ${amount}</p>`,
-        confirmButtonText: "Aceptar",
+        title: t("page.paymentFailed"),
+        html: `<p>${message}</p><p><strong>${t("page.amount")}:</strong> ${amount}</p>`,
+        confirmButtonText: t("page.accept"),
       });
     }
   };
@@ -170,9 +172,9 @@ export default function HomePage() {
     if (name === "Ducha") {
       const result = await Swal.fire({
         icon: "info",
-        title: "Recuerde",
-        text: "Retirar su kit de toalla y jabón en caja",
-        confirmButtonText: "Entendido",
+        title: t("page.remember"),
+        text: t("page.showerReminder"),
+        confirmButtonText: t("page.understood"),
         allowOutsideClick: false,
       });
 
@@ -181,13 +183,11 @@ export default function HomePage() {
       }
     }
 
-    setLoading(true);
-
-    const ticketNumber = generateCode();
+    const ticketNumber = await generateCode();
 
     Swal.fire({
-      title: "Procesando pago",
-      html: `Monto: <b>${amount}</b><br>Siga las instrucciones del equipo...`,
+      title: t("page.processingPayment"),
+      html: `${t("page.amount")}: <b>${amount}</b><br>${t("page.followInstructions")}`,
       didOpen: () => {
         Swal.showLoading();
       },
@@ -200,32 +200,7 @@ export default function HomePage() {
       // Verificar que el POS esté disponible
       const posReady = await checkPosStatus();
       if (!posReady) {
-        throw new Error("POS no disponible. Verifique la conexión.");
-      }
-
-      const qrData = ticketNumber;
-
-      // Crear usuario con reintentos
-      try {
-        await createUserWithRetries(qrData, {
-          maxAttempts: 4,
-          initialDelay: 1000,
-        });
-        console.log("Usuario creado correctamente: ", qrData);
-      } catch (createErr) {
-        console.error("Fallo al crear usuario tras reintentos:", createErr);
-        Swal.close();
-        setError(
-          createErr?.message ??
-            "No se pudo crear el acceso en el sistema del torniquete",
-        );
-        Swal.fire({
-          icon: "error",
-          title: "Error creando acceso",
-          html: `<p>${createErr?.message ?? "No se pudo crear el acceso. Intente nuevamente."}</p>`,
-          confirmButtonText: "Aceptar",
-        });
-        return;
+        throw new Error(t("page.posUnavailable"));
       }
 
       // Procesar pago
@@ -238,6 +213,25 @@ export default function HomePage() {
       showPaymentResult(result, amount);
 
       if (result.data?.approved) {
+        // Registramos en el torniquete el ticketNumber que ya validamos antes del pago
+        const qrData = ticketNumber;
+
+        try {
+          await createUserWithRetries(qrData, {
+            maxAttempts: 4,
+            initialDelay: 1000,
+          });
+          console.log("Usuario creado correctamente post-pago: ", qrData);
+        } catch (createErr) {
+          console.error("Fallo al crear usuario post-pago:", createErr);
+          // Notificar pero no detener el flujo ya que el pago fue exitoso
+          Swal.fire({
+            icon: "warning",
+            title: "Acceso con problemas",
+            text: "El pago fue aprobado, pero hubo un error al habilitar el torniquete. Por favor contacte a soporte.",
+            confirmButtonText: "Entendido",
+          });
+        }
         const fecha = result.data.rawData.realDate;
         const hora = result.data.rawData.realTime;
         const monto = result.data.rawData.amount;
@@ -342,9 +336,9 @@ export default function HomePage() {
           console.error("Error al imprimir voucher:", err);
           Swal.fire({
             icon: "warning",
-            title: "Pago exitoso",
-            text: "Pago procesado pero hubo un error al imprimir el comprobante",
-            confirmButtonText: "Aceptar",
+            title: t("page.paymentSuccess"),
+            text: t("page.printError"),
+            confirmButtonText: t("page.accept"),
           });
         }
       } else {
@@ -355,13 +349,13 @@ export default function HomePage() {
       }
     } catch (err) {
       console.error("Error en pago:", err);
-      setError(err?.message ?? "Error al procesar pago");
+      setError(err?.message ?? t("page.paymentProcessError"));
       Swal.close();
       Swal.fire({
         icon: "error",
-        title: "Error",
-        html: `<p>${err?.message ?? "Error inesperado"}</p>`,
-        confirmButtonText: "Aceptar",
+        title: t("page.error"),
+        html: `<p>${err?.message ?? t("page.unexpectedError")}</p>`,
+        confirmButtonText: t("page.accept"),
       });
     } finally {
       setLoading(false);
@@ -374,7 +368,7 @@ export default function HomePage() {
       setServicios(data || []);
     } catch (err) {
       console.error("Error cargando servicios:", err);
-      setError(err?.message ?? "Error al cargar servicios");
+      setError(err?.message ?? t("page.serviceLoadError"));
     }
   };
 
@@ -384,7 +378,7 @@ export default function HomePage() {
     try {
       await loadServicios();
     } catch (err) {
-      setError(err?.message ?? "Error al cargar servicios");
+      setError(err?.message ?? t("page.serviceLoadError"));
     } finally {
       setLoading(false);
     }
@@ -398,14 +392,14 @@ export default function HomePage() {
       <Header onClick={() => window.location.reload()} />
 
       <div className="font-bold mb-20 text-white text-8xl text-center">
-        ¡Selecciona tu Servicio!
+        {t("page.selectService")}
       </div>
 
       {error && <div className="text-red-600 text-4xl">{error}</div>}
 
       {loading ? (
         <div className="flex items-center justify-center text-5xl mb-15 text-white gap-5">
-          <p>Cargando servicios</p>
+          <p>{t("page.loading")}</p>
           <DotsLoader />
         </div>
       ) : (
@@ -414,7 +408,7 @@ export default function HomePage() {
             <Card
               key={s.id}
               image={s.nombre}
-              name={s.nombre}
+              name={t(`service.${s.nombre}`, s.nombre)}
               price={s.precio}
               onClick={() => handleClick(s.precio, s.nombre, s.id)}
               disabled={disabled}

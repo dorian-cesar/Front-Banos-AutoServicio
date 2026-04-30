@@ -1,5 +1,8 @@
 import Image from "next/image"
+import { useLanguage } from "@/context/LanguageContext";
+
 export default function Card({ image, name, price, onClick, disabled = false }) {
+    const { t } = useLanguage();
     return (
         <div
             className={`flex py-10 px-20 rounded-4xl gap-20 w-full justify-between transition-all duration-300
@@ -36,7 +39,7 @@ export default function Card({ image, name, price, onClick, disabled = false }) 
                     disabled={disabled}
                     onClick={onClick}
                 >
-                    {disabled ? "No disponible" : "Pagar"}
+                    {disabled ? t("card.unavailable") : t("card.pay")}
                 </button>
             </div>
         </div>

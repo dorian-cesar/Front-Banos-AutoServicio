@@ -47,13 +47,46 @@ export function voucher(
   return content;
 }
 
-export function generateCode(length = 6) {
-  const array = new Uint32Array(length);
-  crypto.getRandomValues(array);
-
+export async function generateCode(length = 6) {
+  let isAvailable = false;
   let code = "";
-  for (let i = 0; i < length; i++) {
-    code += (array[i] % 10).toString();
+
+  while (!isAvailable) {
+    const array = new Uint32Array(length);
+    crypto.getRandomValues(array);
+
+    code = "";
+    for (let i = 0; i < length; i++) {
+      code += (array[i] % 10).toString();
+    }
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_USER}/getUser.php`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ pin: code }),
+        },
+      );
+
+      const data = await res.json();
+
+      // code -22 significa "Persona no existe", por lo tanto el PIN está disponible
+      if (data.code === -22) {
+        isAvailable = true;
+        console.log("Código generado disponible:", code);
+      } else {
+        console.log(
+          `Código ${code} no disponible (code: ${data.code}), reintentando...`,
+        );
+      }
+    } catch (err) {
+      console.error("Error validando código:", err);
+      throw new Error("No se pudo validar la disponibilidad del código");
+    }
   }
 
   return code;
