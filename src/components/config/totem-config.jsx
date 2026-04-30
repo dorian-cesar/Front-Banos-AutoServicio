@@ -4,11 +4,27 @@ import { useState } from "react";
 import Image from "next/image";
 import { getIp } from "@/services/totem.service";
 import DotsLoader from "../loader/dots-loader";
+import NumericKeypad from "../ui/numeric-keypad";
 
 export default function TotemConfig({ onSuccess }) {
   const [totemId, setTotemId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const handleKeyPress = (val) => {
+    if (totemId.length < 8) {
+      // Optional limit
+      setTotemId((prev) => prev + val);
+    }
+  };
+
+  const handleDelete = () => {
+    setTotemId((prev) => prev.slice(0, -1));
+  };
+
+  const handleClear = () => {
+    setTotemId("");
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -75,6 +91,7 @@ export default function TotemConfig({ onSuccess }) {
                 onChange={(e) => setTotemId(e.target.value)}
                 placeholder="Ej: 1001"
                 disabled={loading}
+                inputMode="none"
                 className="w-full bg-white/5 border-2 border-white/10 text-white text-5xl py-8 px-10 rounded-3xl outline-none focus:border-white/40 transition-all duration-300 placeholder:text-white/20 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 autoFocus
               />
@@ -117,6 +134,12 @@ export default function TotemConfig({ onSuccess }) {
               )}
             </button>
           </form>
+
+          <NumericKeypad
+            onKeyPress={handleKeyPress}
+            onDelete={handleDelete}
+            onClear={handleClear}
+          />
 
           <div className="text-lg text-white/40 font-semibold pt-4">
             <p>WIT INNOVACION Y TECNOLOGIA SPA</p>
