@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { getIp } from "@/services/totem.service";
+import { checkPosStatus } from "@/services/amos.service";
 import { useLanguage } from "@/context/LanguageContext";
 import DotsLoader from "../loader/dots-loader";
 import NumericKeypad from "../ui/numeric-keypad";

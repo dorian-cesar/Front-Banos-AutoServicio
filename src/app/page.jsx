@@ -22,6 +22,7 @@ export default function HomePage() {
   const { t } = useLanguage();
   const [servicios, setServicios] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMessage, setLoadingMessage] = useState("");
   const [error, setError] = useState(null);
   const [disabled, setDisabled] = useState(true);
   const [posStatus, setPosStatus] = useState(null);
@@ -48,10 +49,19 @@ export default function HomePage() {
         const storedIp = localStorage.getItem("ip");
         console.log("Iniciando con IP identificada:", storedIp);
 
-        // 2) Verificar POS antes de cargar servicios
-        const online = await checkPosStatus();
-        setPosStatus(online);
-        setDisabled(!online);
+        // 2) Verificar POS antes de cargar servicios (Reintento infinito cada 5s)
+        let online = false;
+        while (mounted && !online) {
+          setLoadingMessage(t("page.waitingServer"));
+          online = await checkPosStatus();
+          setPosStatus(online);
+          setDisabled(!online);
+
+          if (!online) {
+            console.log("Servidor no listo, reintentando en 5s...");
+            await new Promise((r) => setTimeout(r, 5000));
+          }
+        }
 
         if (online && mounted) {
           try {
@@ -395,8 +405,8 @@ export default function HomePage() {
       {error && <div className="text-red-600 text-4xl">{error}</div>}
 
       {loading ? (
-        <div className="flex items-center justify-center text-5xl mb-15 text-white gap-5">
-          <p>{t("page.loading")}</p>
+        <div className="flex flex-col items-center justify-center text-5xl mb-15 text-white gap-8">
+          <p className="font-bold">{loadingMessage || t("page.loading")}</p>
           <DotsLoader />
         </div>
       ) : (

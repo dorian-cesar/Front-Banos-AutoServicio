@@ -1,24 +1,24 @@
 const getIpFromStorage = () => localStorage.getItem("ip");
 
-export async function checkPosStatus() {
-  const ip = getIpFromStorage();
-  if (!ip) throw new Error("No hay IP en localStorage");
+export async function checkPosStatus(targetIp = null) {
+  const ip = targetIp || getIpFromStorage();
+  if (!ip) throw new Error("No hay IP disponible");
 
-  //   const res = await fetch(`https://${ip}:3000/monitor`, {
-  //     method: "GET",
-  //     headers: { "Content-Type": "application/json" },
-  //   });
+  try {
+    const res = await fetch(`https://${ip}:3000/monitor`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
 
-  //   if (!res.ok)
-  //     throw new Error("Error al obtener estado del POS: " + res.status);
+    if (!res.ok)
+      throw new Error("Error al obtener estado del POS: " + res.status);
 
-  //   const data = await res.json();
-  const data = {
-    success: true,
-    server: true,
-  };
-
-  return data.success && data.server; // true si está online, false si no
+    const data = await res.json();
+    return data.server === true;
+  } catch (err) {
+    console.error("[amosService] checkPosStatus error:", err);
+    return false;
+  }
 }
 
 export async function postPayment(payload) {

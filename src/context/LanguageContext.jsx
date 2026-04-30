@@ -22,6 +22,7 @@ const translations = {
     // Page
     "page.selectService": "¡Selecciona tu Servicio!",
     "page.loading": "Cargando servicios",
+    "page.waitingServer": "Esperando conexión a servidor...",
     "page.errorLoading": "No se pudieron cargar los servicios",
     "page.errorInit": "Error inicializando aplicación",
     "page.remember": "Recuerde",
@@ -70,6 +71,7 @@ const translations = {
     "card.unavailable": "Unavailable",
     "page.selectService": "Select your Service!",
     "page.loading": "Loading services",
+    "page.waitingServer": "Waiting for server connection...",
     "page.errorLoading": "Could not load services",
     "page.errorInit": "Error initializing application",
     "page.remember": "Remember",
@@ -117,6 +119,7 @@ const translations = {
     "card.unavailable": "Indisponível",
     "page.selectService": "Selecione seu Serviço!",
     "page.loading": "Carregando servicios",
+    "page.waitingServer": "Aguardando conexão com o servidor...",
     "page.errorLoading": "Não foi possível carregar os servicios",
     "page.errorInit": "Erro ao iniciar a aplicação",
     "page.remember": "Lembrete",
