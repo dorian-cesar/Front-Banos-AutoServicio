@@ -258,9 +258,11 @@ export default function HomePage() {
 
         const getIpFromStorage = () => localStorage.getItem("ip");
         const getSiteFromStorage = () => localStorage.getItem("site");
+        const getTotemIdFromStorage = () => localStorage.getItem("totemId");
         const user = getUserFromStorage();
         const ip = getIpFromStorage();
         const site = getSiteFromStorage();
+        const totemId = getTotemIdFromStorage();
 
         // Formatear fecha y hora
         const formattedDate = fecha
@@ -298,7 +300,7 @@ export default function HomePage() {
             codigo_comercio: codigoComercio,
             usuario_id: user.id,
             servicio_id: servicio,
-            ip_amos: ip,
+            ip_amos: totemId,
             ubicacion: site,
           };
 
