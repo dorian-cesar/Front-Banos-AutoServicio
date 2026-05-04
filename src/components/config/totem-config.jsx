@@ -106,7 +106,7 @@ export default function TotemConfig({ onSuccess }) {
             </div>
 
             {error && (
-              <div className="text-red-300 text-2xl font-bold animate-bounce bg-red-500/20 py-4 px-6 rounded-2xl border border-red-500/30">
+              <div className="text-red-300 text-2xl font-bold bg-red-500/20 py-4 px-6 rounded-2xl border border-red-500/30">
                 {error}
               </div>
             )}
