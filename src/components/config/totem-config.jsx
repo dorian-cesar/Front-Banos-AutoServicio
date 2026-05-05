@@ -93,14 +93,13 @@ export default function TotemConfig({ onSuccess }) {
           <form onSubmit={handleSubmit} className="w-full space-y-8 mt-4">
             <div className="relative group">
               <input
-                type="number"
+                type="text"
                 value={totemId}
-                onChange={(e) => setTotemId(e.target.value)}
+                readOnly
                 placeholder={t("config.placeholder")}
                 disabled={loading}
                 inputMode="none"
                 className="w-full bg-white/5 border-2 border-white/10 text-white text-5xl py-8 px-10 rounded-3xl outline-none focus:border-white/40 transition-all duration-300 placeholder:text-white/20 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                autoFocus
               />
               <div className="absolute inset-0 rounded-3xl bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
             </div>
