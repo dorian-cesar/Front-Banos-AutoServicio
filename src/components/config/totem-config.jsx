@@ -149,7 +149,7 @@ export default function TotemConfig({ onSuccess }) {
 
           <div className="text-lg text-white/40 font-semibold pt-4">
             <p>WIT INNOVACION Y TECNOLOGIA SPA</p>
-            <p>v1.2.0</p>
+            <p>v2.0.0</p>
           </div>
         </div>
       </div>
